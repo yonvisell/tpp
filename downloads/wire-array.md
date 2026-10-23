@@ -27,29 +27,29 @@ A **12.5 Ω heater at 2.8 W** draws approximately **0.47 A at 5.9 V**. Eight sim
 
 The PC loads calibration and run settings, then collects logs. Each Teensy scans its eight channels and enforces pulse deadlines locally. A wired start signal can coordinate boards. Measure the complete delay from sampling through computation to switch turn-off and include it in the deadline calculation.
 
-The thermal model tracks heater temperature $T$ and surrounding-material temperature $S$:
+The thermal model tracks heater temperature $`T`$ and surrounding-material temperature $`S`$:
 
-$$
+```math
 C(T)\dot T=P-G(T-S),\qquad
 \dot S=\beta(T-S)-\gamma(S-T_a).
-$$
+```
 
-Here $P$ is heater power, $C$ its heat capacity, $T_a$ ambient temperature, and $G,\beta,\gamma$ fitted heat-transfer coefficients. Retain both states between pulses. Resistance measurements narrow predicted temperature ranges using the batch calibration; retain all compatible branches when the curve is nonmonotonic. Set the next cutoff from the highest remaining heater or surrounding temperature, the minimum heat capacity and maximum possible heater power.
+Here $`P`$ is heater power, $`C`$ its heat capacity, $`T_a`$ ambient temperature, and $`G,\beta,\gamma`$ fitted heat-transfer coefficients. Retain both states between pulses. Resistance measurements narrow predicted temperature ranges using the batch calibration; retain all compatible branches when the curve is nonmonotonic. Set the next cutoff from the highest remaining heater or surrounding temperature, the minimum heat capacity and maximum possible heater power.
 
 ## 3. Measurement and calibration
 
 **Goal:** obtain heater resistance with explicit electrical uncertainty.
 
-Calibrate each current path at two positive currents, measuring the reference current in the **shunt/MOSFET branch**, and check an intermediate value. Fit $I_s=a_I n_I+c_I$, where $n_I$ is the ADC reading. Calibrate the complete voltage path similarly as $V_h=a_V n_V+c_V$, including dividers, selectors and AD8276 loading. Check error over the installed common-mode voltage and concurrent-load range.
+Calibrate each current path at two positive currents, measuring the reference current in the **shunt/MOSFET branch**, and check an intermediate value. Fit $`I_s=a_I n_I+c_I`$, where $`n_I`$ is the ADC reading. Calibrate the complete voltage path similarly as $`V_h=a_V n_V+c_V`$, including dividers, selectors and AD8276 loading. Check error over the installed common-mode voltage and concurrent-load range.
 
 Heater current includes sensing-network current that bypasses the shunt:
 
-$$
+```math
 I_h\in[I_s^-+b^-,\ I_s^++b^+],\qquad
 R_h\in\left[\frac{V_h^-}{I_h^+},\frac{V_h^+}{I_h^-}\right],\quad I_h^->0.
-$$
+```
 
-The interval $[b^-,b^+]$ bounds this additional, signed current. With only the 3 kΩ/1 kΩ return divider connected, it is approximately $V_-/4000$, where $V_-$ is the heater's negative-terminal voltage. The selected AD8276 path adds loading. During the resistor-load checkout, compare a reference measurement in the **heater lead, before the sensing branch**, with calibrated shunt current; retain a range covering selector states, concurrent loads, circuit warming and reference-meter error. Include residual settling error in the voltage and current intervals.
+The interval $`[b^-,b^+]`$ bounds this additional, signed current. With only the 3 kΩ/1 kΩ return divider connected, it is approximately $`V_-/4000`$, where $`V_-`$ is the heater's negative-terminal voltage. The selected AD8276 path adds loading. During the resistor-load checkout, compare a reference measurement in the **heater lead, before the sensing branch**, with calibrated shunt current; retain a range covering selector states, concurrent loads, circuit warming and reference-meter error. Include residual settling error in the voltage and current intervals.
 
 Use settled ON readings for resistance. During switching and OFF periods, propagate the thermal states with the corresponding power bounds. Preserve sample timestamps; stop heating on stale data, a missed acquisition deadline, or disagreement between settled measurements and the calibrated electrical range.
 
