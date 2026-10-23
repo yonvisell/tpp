@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="990" viewBox="0 0 1600 990"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="context-stroke"/></marker></defs><rect width="1600" height="990" fill="white"/><style>text{font-family:Arial,Helvetica,sans-serif;fill:#153345}</style>
+<text x="55" y="58" font-size="34" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Wire temperature reference · measure with kiln closed</text>
+<text x="55" y="95" font-size="21" font-weight="400" text-anchor="start" fill="#607482" style="fill:#607482">Same-spool wire in thermal equilibrium; a nearby probe supplies the independent temperature.</text>
+<rect x="65" y="180" width="895" height="650" rx="20" fill="#e9eef1" stroke="#8fa2ad" stroke-width="1.5"/>
+<text x="104" y="226" font-size="26" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">SMALL VENTED KILN</text>
+<rect x="132" y="280" width="745" height="470" rx="12" fill="#fff8ee" stroke="#d5b48e" stroke-width="1.5"/>
+<text x="170" y="325" font-size="23" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Covered alumina fixture</text>
+<rect x="230" y="500" width="505" height="169" rx="6" fill="#f6f4ee" stroke="#aaa69c" stroke-width="1.5"/>
+<ellipse cx="230" cy="585" rx="33" ry="84" fill="#f0eee8" stroke="#aaa69c" stroke-width="2"/>
+<ellipse cx="735" cy="585" rx="33" ry="84" fill="#e7e4dc" stroke="#aaa69c" stroke-width="2"/>
+<ellipse cx="307" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="324" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="341" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="358" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="375" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="392" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="409" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="426" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="443" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="460" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="477" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="494" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="511" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="528" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="545" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="562" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="579" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="596" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="613" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<ellipse cx="630" cy="585" rx="12" ry="85" fill="none" stroke="#bc6a28" stroke-width="2"/>
+<text x="472" y="715" font-size="20" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">1–2 m wire · single layer · 0.5 mm pitch</text>
+<rect x="210" y="390" width="80" height="54" rx="4" fill="#f4f4f2" stroke="#a1a5a6" stroke-width="1.5"/>
+<rect x="720" y="390" width="80" height="54" rx="4" fill="#f4f4f2" stroke="#a1a5a6" stroke-width="1.5"/>
+<circle cx="250" cy="417" r="7" fill="#bc6a28"/>
+<circle cx="760" cy="417" r="7" fill="#bc6a28"/>
+<path d="M250 417V480H307V500 M630 500V480H760V417" fill="none" stroke="#bc6a28" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="490" y="387" font-size="21" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">Two isolated hot connections</text>
+<rect x="877" y="337" width="83" height="130" rx="2" fill="white" stroke="#8fa2ad" stroke-width="1.5"/>
+<text x="918" y="310" font-size="20" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">Vent</text>
+<path d="M250 417V355H1105 M760 417V395H1105" fill="none" stroke="#25806b" stroke-width="5" stroke-linejoin="round"/>
+<text x="1080" y="281" font-size="23" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Thick NiCr leads</text>
+<text x="1080" y="311" font-size="18" font-weight="400" text-anchor="start" fill="#153345" style="fill:#153345">Ceramic insulation in hot zone</text>
+<rect x="1105" y="337" width="375" height="180" rx="10" fill="#f0f8f4" stroke="#a8c9bb" stroke-width="1.5"/>
+<text x="1292" y="384" font-size="25" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">RESISTANCE METER</text>
+<text x="1292" y="435" font-size="36" font-weight="700" text-anchor="middle" fill="#25806b" style="fill:#25806b">R(T)</text>
+<text x="1292" y="480" font-size="18" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">Room-temperature connections</text>
+<path d="M680 575H795V435H1025V668H1105" fill="none" stroke="#2c78b5" stroke-width="4" stroke-linejoin="round"/>
+<circle cx="680" cy="575" r="6" fill="#2c78b5"/>
+<text x="811" y="540" font-size="18" font-weight="400" text-anchor="start" fill="#2c78b5" style="fill:#2c78b5">Probe tip</text>
+<text x="811" y="568" font-size="18" font-weight="400" text-anchor="start" fill="#2c78b5" style="fill:#2c78b5">beside wire</text>
+<rect x="1105" y="595" width="375" height="160" rx="10" fill="#f1f7fb" stroke="#adc8dc" stroke-width="1.5"/>
+<text x="1292" y="638" font-size="25" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">TEMPERATURE METER</text>
+<text x="1292" y="681" font-size="20" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">Type K · 80PK-22 option</text>
+<text x="1292" y="718" font-size="19" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">Probe handle outside</text>
+<text x="1105" y="809" font-size="20" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Kiln heats wire; meter measures R</text>
+<text x="65" y="891" font-size="26" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Connect before heating → close kiln → soak → record temperature and resistance</text>
+<text x="65" y="935" font-size="18" font-weight="400" text-anchor="start" fill="#607482" style="fill:#607482">Verify vent clearance and temperature uniformity. Fixture dimensions, connections and procedure: WireTemperature-Calibration.md</text>
+</svg>
