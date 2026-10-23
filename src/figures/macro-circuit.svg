@@ -1,0 +1,217 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1850" height="1460" viewBox="0 0 1850 1460"><rect width="100%" height="100%" fill="white"/><style>text{font-family:Arial,Helvetica,sans-serif}</style><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#73558c"/></marker></defs>
+<text x="50" y="60" font-size="34" fill="#183442" font-weight="700" text-anchor="start">MacroTPP · complete single-pixel circuit</text>
+<text x="50" y="98" font-size="21" fill="#71838e" font-weight="400" text-anchor="start">Approximately 1 Ω NiCr foil · direct voltage sensing · Teensy 4.1 · all analog/control signals 3.3 V</text>
+<rect x="40" y="135" width="795" height="1110" fill="#fcfdfe" stroke="#dce4e8" stroke-width="1.5"/>
+<text x="62" y="173" font-size="24" fill="#183442" font-weight="700" text-anchor="start">A  Power path and current measurement</text>
+<rect x="865" y="135" width="945" height="600" fill="#fcfdfe" stroke="#dce4e8" stroke-width="1.5"/>
+<text x="887" y="173" font-size="24" fill="#183442" font-weight="700" text-anchor="start">B  Voltage measurement at the foil terminals</text>
+<rect x="865" y="765" width="945" height="480" fill="#fcfdfe" stroke="#dce4e8" stroke-width="1.5"/>
+<text x="887" y="803" font-size="24" fill="#183442" font-weight="700" text-anchor="start">C  Local controller and computer connection</text>
+<circle cx="270" cy="245" r="4" fill="white" stroke="#97521d" stroke-width="2.5"/>
+<text x="280" y="236" font-size="19" fill="#97521d" font-weight="700" text-anchor="start">SUPPLY +</text>
+<path d="M270 245 L270 320" fill="none" stroke="#97521d" stroke-width="5" stroke-linejoin="round"/>
+<text x="450" y="220" font-size="22" fill="#183442" font-weight="700" text-anchor="start">Variable DC supply</text>
+<text x="450" y="250" font-size="18" fill="#183442" font-weight="400" text-anchor="start">Set voltage from measured foil resistance</text>
+<text x="450" y="278" font-size="18" fill="#183442" font-weight="400" text-anchor="start">Adjustable current limit below 5 A</text>
+<circle cx="270" cy="320" r="7" fill="white" stroke="#97521d" stroke-width="2.5"/>
+<path d="M270 320 L270 335" fill="none" stroke="#97521d" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="260" y="335" width="20" height="45" fill="white" stroke="#97521d" stroke-width="2"/>
+<path d="M270 380 L270 395" fill="none" stroke="#97521d" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="290" y="365" font-size="19" fill="#97521d" font-weight="400" text-anchor="start">NiCr foil ~1 Ω</text>
+<path d="M270 395 L270 430" fill="none" stroke="#97521d" stroke-width="5" stroke-linejoin="round"/>
+<circle cx="270" cy="430" r="7" fill="white" stroke="#97521d" stroke-width="2.5"/>
+<path d="M277 320 L650 320" fill="none" stroke="#246c9e" stroke-width="2.8" stroke-linejoin="round"/>
+<circle cx="650" cy="320" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="660" y="311" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">SENSE +</text>
+<path d="M277 430 L650 430" fill="none" stroke="#246c9e" stroke-width="2.8" stroke-linejoin="round"/>
+<circle cx="650" cy="430" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="660" y="421" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">SENSE −</text>
+<text x="455" y="385" font-size="18" fill="#246c9e" font-weight="400" text-anchor="start">Separate wires from foil pads</text>
+<path d="M270 437 L270 530" fill="none" stroke="#97521d" stroke-width="5" stroke-linejoin="round"/>
+<rect x="215" y="530" width="340" height="250" fill="#f5faf7" stroke="#207962" stroke-width="2"/>
+<text x="415" y="570" font-size="23" fill="#207962" font-weight="700" text-anchor="middle">INA253EVM</text>
+<text x="415" y="600" font-size="21" fill="#207962" font-weight="400" text-anchor="middle">A3 section</text>
+<text x="415" y="739" font-size="16" fill="#207962" font-weight="400" text-anchor="middle">Assembled sensor board</text>
+<path d="M270 530 L270 625" fill="none" stroke="#97521d" stroke-width="5" stroke-linejoin="round"/>
+<path d="M270 625 L270 640" fill="none" stroke="#97521d" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="260" y="640" width="20" height="45" fill="white" stroke="#97521d" stroke-width="2"/>
+<path d="M270 685 L270 700" fill="none" stroke="#97521d" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="290" y="670" font-size="19" fill="#97521d" font-weight="400" text-anchor="start">2 mΩ</text>
+<path d="M270 700 L270 780" fill="none" stroke="#97521d" stroke-width="5" stroke-linejoin="round"/>
+<text x="290" y="625" font-size="17" fill="#183442" font-weight="400" text-anchor="start">IS+</text>
+<text x="290" y="765" font-size="17" fill="#183442" font-weight="400" text-anchor="start">IS−</text>
+<path d="M555 655 L640 655" fill="none" stroke="#207962" stroke-width="2.8" stroke-linejoin="round"/>
+<circle cx="640" cy="655" r="4" fill="white" stroke="#207962" stroke-width="2.5"/>
+<text x="650" y="646" font-size="19" fill="#207962" font-weight="700" text-anchor="start">I RAW</text>
+<text x="570" y="695" font-size="20" fill="#207962" font-weight="400" text-anchor="start">0.4 V/A</text>
+<path d="M385 530 L385 488" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="385" cy="488" r="4" fill="white" stroke="#183442" stroke-width="2.5"/>
+<text x="395" y="479" font-size="19" fill="#183442" font-weight="700" text-anchor="start">3.3 V</text>
+<path d="M385 780 L385 812" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M385 812 L385 824" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M370 824 L400 824" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M375 831 L395 831" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M380 838 L390 838" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="405" y="805" font-size="17" fill="#183442" font-weight="400" text-anchor="start">REF1, REF2, GND</text>
+<circle cx="565" cy="865" r="4" fill="white" stroke="#207962" stroke-width="2.5"/>
+<text x="575" y="856" font-size="19" fill="#207962" font-weight="700" text-anchor="start">I RAW</text>
+<path d="M565 910 L580 910" fill="none" stroke="#207962" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="580" y="900" width="50" height="20" fill="white" stroke="#207962" stroke-width="2"/>
+<path d="M630 910 L645 910" fill="none" stroke="#207962" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="605" y="888" font-size="19" fill="#207962" font-weight="400" text-anchor="middle">100 Ω</text>
+<path d="M565 865 L565 910" fill="none" stroke="#207962" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M645 910 L750 910" fill="none" stroke="#207962" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="680" cy="910" r="4.5" fill="#207962"/>
+<path d="M680 910 L680 932" fill="none" stroke="#207962" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M665 932 L695 932" fill="none" stroke="#207962" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M665 941 L695 941" fill="none" stroke="#207962" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M680 941 L680 970" fill="none" stroke="#207962" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="703" y="943" font-size="18" fill="#207962" font-weight="400" text-anchor="start">1 nF</text>
+<path d="M680 970 L680 982" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M665 982 L695 982" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M670 989 L690 989" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M675 996 L685 996" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="750" cy="910" r="4" fill="white" stroke="#207962" stroke-width="2.5"/>
+<text x="760" y="901" font-size="19" fill="#207962" font-weight="700" text-anchor="start">I MEAS</text>
+<path d="M270 780 L270 920" fill="none" stroke="#97521d" stroke-width="5" stroke-linejoin="round"/>
+<path d="M270 920 L270 958 L252 958" fill="none" stroke="#97521d" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M252 954 L252 970" fill="none" stroke="#97521d" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M252 982 L252 998" fill="none" stroke="#97521d" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M252 1010 L252 1026" fill="none" stroke="#97521d" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M252 1022 L270 1022 L270 1060" fill="none" stroke="#97521d" stroke-width="3.5" stroke-linejoin="round"/>
+<path d="M235 954 L235 1026" fill="none" stroke="#73558c" stroke-width="3" stroke-linejoin="round"/>
+<path d="M160 990 L235 990" fill="none" stroke="#73558c" stroke-width="3" stroke-linejoin="round"/>
+<path d="M260 1022 L260 990 L252 990" fill="none" stroke="#97521d" stroke-width="2.3" stroke-linejoin="round"/>
+<path d="M252 990l9 -5v10z" fill="#97521d"/>
+<text x="290" y="950" font-size="18" fill="#183442" font-weight="400" text-anchor="start">D</text>
+<text x="290" y="1050" font-size="18" fill="#183442" font-weight="400" text-anchor="start">S</text>
+<text x="180" y="978" font-size="18" fill="#73558c" font-weight="400" text-anchor="start">G</text>
+<text x="345" y="985" font-size="22" fill="#183442" font-weight="700" text-anchor="start">CSD17305Q5A</text>
+<text x="345" y="1014" font-size="18" fill="#71838e" font-weight="400" text-anchor="start">N-channel MOSFET</text>
+<path d="M270 1060 L270 1170" fill="none" stroke="#97521d" stroke-width="5" stroke-linejoin="round"/>
+<path d="M270 1170 L270 1182" fill="none" stroke="#97521d" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M255 1182 L285 1182" fill="none" stroke="#97521d" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M260 1189 L280 1189" fill="none" stroke="#97521d" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M265 1196 L275 1196" fill="none" stroke="#97521d" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="300" y="1174" font-size="19" fill="#97521d" font-weight="400" text-anchor="start">SUPPLY − / GND</text>
+<circle cx="77" cy="1035" r="4" fill="white" stroke="#73558c" stroke-width="2.5"/>
+<text x="87" y="1026" font-size="19" fill="#73558c" font-weight="700" text-anchor="start">DRIVE</text>
+<path d="M77 1035 L77 990" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M77 990 L92 990" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="92" y="980" width="50" height="20" fill="white" stroke="#73558c" stroke-width="2"/>
+<path d="M142 990 L157 990" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="117" y="968" font-size="19" fill="#73558c" font-weight="400" text-anchor="middle">1 kΩ</text>
+<path d="M157 990 L160 990" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="160" cy="990" r="4.5" fill="#73558c"/>
+<path d="M160 990 L160 1060" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M160 1060 L160 1075" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="150" y="1075" width="20" height="45" fill="white" stroke="#73558c" stroke-width="2"/>
+<path d="M160 1120 L160 1135" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="180" y="1105" font-size="19" fill="#73558c" font-weight="400" text-anchor="start">100 kΩ</text>
+<path d="M160 1135 L160 1170 L270 1170" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="270" cy="1170" r="4.5" fill="#97521d"/>
+<circle cx="1010" cy="250" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="1020" y="241" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">SENSE +</text>
+<path d="M1010 250 L1010 280" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1010 280 L1010 295" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="1000" y="295" width="20" height="45" fill="white" stroke="#246c9e" stroke-width="2"/>
+<path d="M1010 340 L1010 355" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1030" y="325" font-size="19" fill="#246c9e" font-weight="400" text-anchor="start">1.00 kΩ</text>
+<path d="M1010 355 L1010 390" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="1010" cy="390" r="4.5" fill="#246c9e"/>
+<path d="M1010 390 L1010 405" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="1000" y="405" width="20" height="45" fill="white" stroke="#246c9e" stroke-width="2"/>
+<path d="M1010 450 L1010 465" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1030" y="435" font-size="19" fill="#246c9e" font-weight="400" text-anchor="start">1.00 kΩ</text>
+<path d="M1010 465 L1010 535" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1010 535 L1010 547" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M995 547 L1025 547" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1000 554 L1020 554" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1005 561 L1015 561" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1010 390 L1230 390" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="1130" cy="390" r="4.5" fill="#246c9e"/>
+<path d="M1130 420 L1130 442" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1115 442 L1145 442" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1115 451 L1145 451" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1130 451 L1130 480" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1153" y="453" font-size="18" fill="#246c9e" font-weight="400" text-anchor="start">1 nF</text>
+<path d="M1130 390 L1130 420" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1130 480 L1130 535" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1130 535 L1130 547" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1115 547 L1145 547" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1120 554 L1140 554" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1125 561 L1135 561" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="1230" cy="390" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="1240" y="381" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">V+ MEAS</text>
+<circle cx="1455" cy="250" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="1465" y="241" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">SENSE −</text>
+<path d="M1455 250 L1455 280" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1455 280 L1455 295" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="1445" y="295" width="20" height="45" fill="white" stroke="#246c9e" stroke-width="2"/>
+<path d="M1455 340 L1455 355" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1475" y="325" font-size="19" fill="#246c9e" font-weight="400" text-anchor="start">1.00 kΩ</text>
+<path d="M1455 355 L1455 390" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="1455" cy="390" r="4.5" fill="#246c9e"/>
+<path d="M1455 390 L1455 405" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="1445" y="405" width="20" height="45" fill="white" stroke="#246c9e" stroke-width="2"/>
+<path d="M1455 450 L1455 465" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1475" y="435" font-size="19" fill="#246c9e" font-weight="400" text-anchor="start">1.00 kΩ</text>
+<path d="M1455 465 L1455 535" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1455 535 L1455 547" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1440 547 L1470 547" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1445 554 L1465 554" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1450 561 L1460 561" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1455 390 L1675 390" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="1575" cy="390" r="4.5" fill="#246c9e"/>
+<path d="M1575 420 L1575 442" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1560 442 L1590 442" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1560 451 L1590 451" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1575 451 L1575 480" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1598" y="453" font-size="18" fill="#246c9e" font-weight="400" text-anchor="start">1 nF</text>
+<path d="M1575 390 L1575 420" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1575 480 L1575 535" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1575 535 L1575 547" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1560 547 L1590 547" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1565 554 L1585 554" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1570 561 L1580 561" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="1675" cy="390" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="1685" y="381" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">V− MEAS</text>
+<text x="900" y="622" font-size="21" fill="#183442" font-weight="400" text-anchor="start">Divider resistors: 0.1%, low temperature coefficient</text>
+<text x="900" y="660" font-size="21" fill="#183442" font-weight="400" text-anchor="start">Both terminal voltages are measured; Teensy subtracts them.</text>
+<text x="900" y="698" font-size="20" fill="#71838e" font-weight="400" text-anchor="start">Designed for a supply up to 5 V; nominal division by two.</text>
+<rect x="1080" y="840" width="620" height="310" fill="#f3f6f9" stroke="#71838e" stroke-width="2"/>
+<text x="1390" y="885" font-size="28" fill="#183442" font-weight="700" text-anchor="middle">TEENSY 4.1</text>
+<path d="M1550 840 L1550 815" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="1550" cy="815" r="4" fill="white" stroke="#183442" stroke-width="2.5"/>
+<text x="1560" y="806" font-size="19" fill="#183442" font-weight="700" text-anchor="start">3.3 V</text>
+<text x="1565" y="865" font-size="16" fill="#183442" font-weight="400" text-anchor="start">OUT</text>
+<circle cx="910" cy="940" r="4" fill="white" stroke="#207962" stroke-width="2.5"/>
+<text x="920" y="931" font-size="19" fill="#207962" font-weight="700" text-anchor="start">I MEAS</text>
+<path d="M910 940 L1080 940" fill="none" stroke="#207962" stroke-width="2.8" stroke-linejoin="round"/>
+<text x="1100" y="947" font-size="21" fill="#183442" font-weight="400" text-anchor="start">Analog in: current</text>
+<circle cx="910" cy="1000" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="920" y="991" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">V+ MEAS</text>
+<path d="M910 1000 L1080 1000" fill="none" stroke="#246c9e" stroke-width="2.8" stroke-linejoin="round"/>
+<text x="1100" y="1007" font-size="21" fill="#183442" font-weight="400" text-anchor="start">Analog in: voltage at terminal +</text>
+<circle cx="910" cy="1060" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="920" y="1051" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">V− MEAS</text>
+<path d="M910 1060 L1080 1060" fill="none" stroke="#246c9e" stroke-width="2.8" stroke-linejoin="round"/>
+<text x="1100" y="1067" font-size="21" fill="#183442" font-weight="400" text-anchor="start">Analog in: voltage at terminal −</text>
+<path d="M1700 940 L1770 940 L1770 1178 L1690 1178" fill="none" stroke="#73558c" stroke-width="2.8" stroke-linejoin="round"/>
+<circle cx="1690" cy="1178" r="4" fill="white" stroke="#73558c" stroke-width="2.5"/>
+<text x="1680" y="1169" font-size="19" fill="#73558c" font-weight="700" text-anchor="end">DRIVE</text>
+<text x="1600" y="932" font-size="18" fill="#73558c" font-weight="400" text-anchor="end">Power control</text>
+<path d="M1390 1150 L1390 1180" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1390 1180 L1390 1192" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1375 1192 L1405 1192" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1380 1199 L1400 1199" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1385 1206 L1395 1206" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1430" y="1195" font-size="18" fill="#183442" font-weight="400" text-anchor="start">Common ground</text>
+<text x="1120" y="1120" font-size="19" fill="#183442" font-weight="700" text-anchor="start">Temperature estimate + pulse / duty control</text>
+<rect x="45" y="1285" width="550" height="110" fill="white" stroke="#71838e" stroke-width="2"/>
+<text x="75" y="1326" font-size="24" fill="#183442" font-weight="700" text-anchor="start">PC · setup, calibration and plots</text>
+<text x="75" y="1365" font-size="20" fill="#183442" font-weight="400" text-anchor="start">USB provides 5 V power to Teensy</text>
+<path d="M595 1340H1610V1150" fill="none" stroke="#73558c" stroke-width="3" marker-start="url(#arr)" marker-end="url(#arr)"/>
+<text x="900" y="1320" font-size="21" fill="#73558c" font-weight="400" text-anchor="start">USB · commands and measurements</text>
+<text x="50" y="1430" font-size="19" fill="#71838e" font-weight="400" text-anchor="start">Electrical schematic · matching net labels are connected · GND joins the supply negative and control ground</text>
+</svg>

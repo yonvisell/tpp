@@ -1,0 +1,16 @@
+{
+  "name": "thermopneumatic-pixel-notes",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/check.mjs",
+    "preview": "node scripts/serve.mjs",
+    "sync": "node scripts/sync.mjs"
+  },
+  "dependencies": {
+    "katex": "0.19.1",
+    "markdown-it": "15.0.3"
+  }
+}

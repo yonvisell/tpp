@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1210" viewBox="0 0 1600 1210"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="context-stroke"/></marker></defs><rect width="1600" height="1210" fill="white"/><style>text{font-family:Arial,Helvetica,sans-serif;fill:#153345}</style>
+<text x="55" y="58" font-size="34" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Wire array · four identical eight-pixel boards</text>
+<text x="55" y="95" font-size="21" font-weight="400" text-anchor="start" fill="#607482" style="fill:#607482">All switches and sensing electronics in the housing. Every pixel has its own pulse control.</text>
+<rect x="55" y="170" width="365" height="300" rx="10" fill="#fff8f1" stroke="#d3b696" stroke-width="1.5"/>
+<text x="237" y="213" font-size="25" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">PASSIVE ARRAY</text>
+<ellipse cx="122" cy="280" rx="25" ry="25" fill="#fae2c9" stroke="#bc6a28" stroke-width="2"/>
+<path d="M110 280h24" fill="none" stroke="#bc6a28" stroke-width="3" stroke-linejoin="round"/>
+<ellipse cx="196" cy="280" rx="25" ry="25" fill="#fae2c9" stroke="#bc6a28" stroke-width="2"/>
+<path d="M184 280h24" fill="none" stroke="#bc6a28" stroke-width="3" stroke-linejoin="round"/>
+<ellipse cx="270" cy="280" rx="25" ry="25" fill="#fae2c9" stroke="#bc6a28" stroke-width="2"/>
+<path d="M258 280h24" fill="none" stroke="#bc6a28" stroke-width="3" stroke-linejoin="round"/>
+<ellipse cx="344" cy="280" rx="25" ry="25" fill="#fae2c9" stroke="#bc6a28" stroke-width="2"/>
+<path d="M332 280h24" fill="none" stroke="#bc6a28" stroke-width="3" stroke-linejoin="round"/>
+<ellipse cx="122" cy="352" rx="25" ry="25" fill="#fae2c9" stroke="#bc6a28" stroke-width="2"/>
+<path d="M110 352h24" fill="none" stroke="#bc6a28" stroke-width="3" stroke-linejoin="round"/>
+<ellipse cx="196" cy="352" rx="25" ry="25" fill="#fae2c9" stroke="#bc6a28" stroke-width="2"/>
+<path d="M184 352h24" fill="none" stroke="#bc6a28" stroke-width="3" stroke-linejoin="round"/>
+<ellipse cx="270" cy="352" rx="25" ry="25" fill="#fae2c9" stroke="#bc6a28" stroke-width="2"/>
+<path d="M258 352h24" fill="none" stroke="#bc6a28" stroke-width="3" stroke-linejoin="round"/>
+<ellipse cx="344" cy="352" rx="25" ry="25" fill="#fae2c9" stroke="#bc6a28" stroke-width="2"/>
+<path d="M332 352h24" fill="none" stroke="#bc6a28" stroke-width="3" stroke-linejoin="round"/>
+<text x="237" y="418" font-size="20" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">8 of 32 pixels shown</text>
+<text x="237" y="448" font-size="18" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">Heaters · copper · connector pads</text>
+<path d="M420 305H655" fill="none" stroke="#607482" stroke-width="10" stroke-linejoin="round"/>
+<text x="536" y="268" font-size="24" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">≥10 cm</text>
+<text x="536" y="350" font-size="18" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">25 connections / bank</text>
+<text x="536" y="379" font-size="18" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">9 power + 16 sense</text>
+<rect x="655" y="170" width="890" height="300" rx="10" fill="#f5f8fa" stroke="#8ca3b1" stroke-width="1.5"/>
+<text x="688" y="213" font-size="25" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">ELECTRONICS HOUSING</text>
+<rect x="688" y="247" width="184" height="122" rx="10" fill="white" stroke="#b5c4cc" stroke-width="1.5"/>
+<text x="780" y="285" font-size="22" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">Board 1</text>
+<text x="780" y="320" font-size="20" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">8 channels</text>
+<text x="780" y="347" font-size="18" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">1 Teensy</text>
+<rect x="895" y="247" width="184" height="122" rx="10" fill="white" stroke="#b5c4cc" stroke-width="1.5"/>
+<text x="987" y="285" font-size="22" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">Board 2</text>
+<text x="987" y="320" font-size="20" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">8 channels</text>
+<text x="987" y="347" font-size="18" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">1 Teensy</text>
+<rect x="1102" y="247" width="184" height="122" rx="10" fill="white" stroke="#b5c4cc" stroke-width="1.5"/>
+<text x="1194" y="285" font-size="22" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">Board 3</text>
+<text x="1194" y="320" font-size="20" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">8 channels</text>
+<text x="1194" y="347" font-size="18" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">1 Teensy</text>
+<rect x="1309" y="247" width="184" height="122" rx="10" fill="white" stroke="#b5c4cc" stroke-width="1.5"/>
+<text x="1401" y="285" font-size="22" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">Board 4</text>
+<text x="1401" y="320" font-size="20" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">8 channels</text>
+<text x="1401" y="347" font-size="18" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">1 Teensy</text>
+<path d="M780 369V399H1400V369 M987 369V399 M1194 369V399" fill="none" stroke="#77609c" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1100" y="443" font-size="20" font-weight="400" text-anchor="middle" fill="#77609c" style="fill:#77609c">Shared start · USB setup and logs</text>
+<path d="M780 470V501" fill="none" stroke="#607482" stroke-width="2" stroke-linejoin="round" marker-end="url(#arrow)" stroke-dasharray="8 6"/>
+<rect x="55" y="535" width="1490" height="565" rx="10" fill="#fcfdfe" stroke="#8ca3b1" stroke-width="1.5"/>
+<text x="85" y="575" font-size="25" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">ONE EIGHT-CHANNEL BOARD</text>
+<text x="88" y="641" font-size="20" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Heater return i</text>
+<path d="M88 688H345" fill="none" stroke="#bc6a28" stroke-width="5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="345" y="641" width="190" height="94" rx="10" fill="#fff8f1" stroke="#d3b696" stroke-width="1.5"/>
+<text x="440" y="680" font-size="25" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">0.100 Ω</text>
+<text x="440" y="711" font-size="18" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">shunt · ×8</text>
+<rect x="650" y="641" width="200" height="94" rx="10" fill="#f5f8fa" stroke="#b5c4cc" stroke-width="1.5"/>
+<text x="750" y="680" font-size="24" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">AO3400A</text>
+<text x="750" y="711" font-size="18" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">switch · ×8</text>
+<path d="M535 688H650 M850 688H925V708" fill="none" stroke="#bc6a28" stroke-width="5" stroke-linejoin="round"/>
+<path d="M925 708v13m-17 0h34m-27 7h20m-15 7h10" fill="none" stroke="#bc6a28" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="350" cy="688" r="5" fill="#25806b"/>
+<circle cx="530" cy="688" r="5" fill="#25806b"/>
+<path d="M350 688V792 M530 688V792" fill="none" stroke="#25806b" stroke-width="3" stroke-linejoin="round"/>
+<rect x="320" y="792" width="240" height="92" rx="10" fill="#f0f8f4" stroke="#a8c9bb" stroke-width="1.5"/>
+<text x="440" y="828" font-size="24" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">INA190A2 · ×8</text>
+<text x="440" y="861" font-size="19" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">50× gain · 3.3 V</text>
+<rect x="1150" y="630" width="350" height="420" rx="10" fill="#f1f5f9" stroke="#8ca3b1" stroke-width="1.5"/>
+<text x="1180" y="673" font-size="26" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">TEENSY 4.1</text>
+<text x="1180" y="750" font-size="22" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">8 gate outputs</text>
+<text x="1180" y="780" font-size="20" font-weight="400" text-anchor="start" fill="#153345" style="fill:#153345">Independent pulse control</text>
+<text x="1180" y="845" font-size="21" font-weight="400" text-anchor="start" fill="#153345" style="fill:#153345">8 current inputs</text>
+<text x="1180" y="875" font-size="19" font-weight="400" text-anchor="start" fill="#153345" style="fill:#153345">One analog signal per pixel</text>
+<text x="1180" y="952" font-size="21" font-weight="400" text-anchor="start" fill="#153345" style="fill:#153345">1 voltage input</text>
+<text x="1180" y="982" font-size="19" font-weight="400" text-anchor="start" fill="#153345" style="fill:#153345">Selected voltage difference</text>
+<text x="1180" y="1025" font-size="20" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Local observer + cutoff</text>
+<path d="M560 838H1150" fill="none" stroke="#25806b" stroke-width="3.5" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="795" y="820" font-size="20" font-weight="400" text-anchor="start" fill="#25806b" style="fill:#25806b">Iᵢ · analog</text>
+<path d="M1150 743H1000V608H750V641" fill="none" stroke="#77609c" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="825" y="600" font-size="19" font-weight="400" text-anchor="start" fill="#77609c" style="fill:#77609c">Independent power control</text>
+<text x="87" y="942" font-size="20" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">16 heater-terminal</text>
+<text x="87" y="972" font-size="20" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">sense connections</text>
+<rect x="320" y="926" width="230" height="115" rx="10" fill="#f1f7fb" stroke="#adc8dc" stroke-width="1.5"/>
+<text x="435" y="964" font-size="22" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">16 dividers</text>
+<text x="435" y="997" font-size="20" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">3 kΩ / 1 kΩ</text>
+<text x="435" y="1024" font-size="17" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">one per sense lead</text>
+<rect x="620" y="926" width="225" height="115" rx="10" fill="#f1f7fb" stroke="#adc8dc" stroke-width="1.5"/>
+<text x="732" y="963" font-size="22" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">2 × TMUX1108</text>
+<text x="732" y="997" font-size="19" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">Select Vᵢ+ and Vᵢ−</text>
+<text x="732" y="1024" font-size="17" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">same address</text>
+<rect x="900" y="926" width="200" height="115" rx="10" fill="#f1f7fb" stroke="#adc8dc" stroke-width="1.5"/>
+<text x="1000" y="965" font-size="24" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">AD8276</text>
+<text x="1000" y="999" font-size="18" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">Voltage difference</text>
+<path d="M85 1009H320 M550 965H620 M550 1008H620 M845 965H900 M845 1008H900 M1100 982H1150" fill="none" stroke="#2c78b5" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="85" y="1143" font-size="22" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Voltage selectors change only the measurement. Other heaters remain independently powered.</text>
+<text x="85" y="1180" font-size="18" font-weight="400" text-anchor="start" fill="#607482" style="fill:#607482">Common power feed must carry the sum of channel currents. Detailed wiring and pin map: WireArray-MVP.md</text>
+</svg>

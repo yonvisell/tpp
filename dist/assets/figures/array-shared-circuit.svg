@@ -1,0 +1,172 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1480" viewBox="0 0 2000 1480"><rect width="100%" height="100%" fill="white"/><style>text{font-family:Arial,Helvetica,sans-serif}</style><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="#73558c"/></marker></defs>
+<text x="50" y="60" font-size="34" fill="#183442" font-weight="700" text-anchor="start">Wire TPP array · shared voltage circuit and Teensy</text>
+<text x="50" y="98" font-size="21" fill="#71838e" font-weight="400" text-anchor="start">One copy per eight pixels · 32 pixels use four identical boards · matching signal labels connect to the pixel sheet</text>
+<rect x="40" y="140" width="1920" height="790" fill="#fcfdfe" stroke="#dce4e8" stroke-width="1.5"/>
+<text x="62" y="178" font-size="24" fill="#183442" font-weight="700" text-anchor="start">A  Select both terminals of the same pixel and measure their voltage difference</text>
+<rect x="350" y="255" width="360" height="225" fill="#f2f7fb" stroke="#246c9e" stroke-width="2"/>
+<text x="530" y="297" font-size="25" fill="#246c9e" font-weight="700" text-anchor="middle">TMUX1108</text>
+<text x="530" y="327" font-size="18" fill="#246c9e" font-weight="400" text-anchor="middle">8:1 analog selector</text>
+<circle cx="80" cy="370" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="90" y="361" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">DIV 1+ … DIV 8+</text>
+<path d="M80 370 L350 370" fill="none" stroke="#246c9e" stroke-width="3.2" stroke-linejoin="round"/>
+<text x="368" y="378" font-size="20" fill="#246c9e" font-weight="400" text-anchor="start">S1 … S8</text>
+<path d="M710 370 L850 370" fill="none" stroke="#246c9e" stroke-width="3" stroke-linejoin="round"/>
+<text x="662" y="361" font-size="18" fill="#246c9e" font-weight="400" text-anchor="start">D</text>
+<circle cx="850" cy="370" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="860" y="361" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">SEL+</text>
+<path d="M530 255 L530 220" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="530" cy="220" r="4" fill="white" stroke="#183442" stroke-width="2.5"/>
+<text x="540" y="211" font-size="19" fill="#183442" font-weight="700" text-anchor="start">3.3 V</text>
+<path d="M650 480 L650 513" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M650 513 L650 525" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M635 525 L665 525" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M640 532 L660 532" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M645 539 L655 539" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="670" y="499" font-size="17" fill="#183442" font-weight="400" text-anchor="start">VSS + GND</text>
+<path d="M410 480 L410 515" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="410" cy="515" r="4" fill="white" stroke="#73558c" stroke-width="2.5"/>
+<text x="400" y="506" font-size="19" fill="#73558c" font-weight="700" text-anchor="end">ADDRESS</text>
+<path d="M540 480 L540 515" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="540" cy="515" r="4" fill="white" stroke="#73558c" stroke-width="2.5"/>
+<text x="550" y="506" font-size="19" fill="#73558c" font-weight="700" text-anchor="start">ENABLE</text>
+<rect x="350" y="590" width="360" height="225" fill="#f2f7fb" stroke="#246c9e" stroke-width="2"/>
+<text x="530" y="632" font-size="25" fill="#246c9e" font-weight="700" text-anchor="middle">TMUX1108</text>
+<text x="530" y="662" font-size="18" fill="#246c9e" font-weight="400" text-anchor="middle">8:1 analog selector</text>
+<circle cx="80" cy="705" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="90" y="696" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">DIV 1− … DIV 8−</text>
+<path d="M80 705 L350 705" fill="none" stroke="#246c9e" stroke-width="3.2" stroke-linejoin="round"/>
+<text x="368" y="713" font-size="20" fill="#246c9e" font-weight="400" text-anchor="start">S1 … S8</text>
+<path d="M710 705 L850 705" fill="none" stroke="#246c9e" stroke-width="3" stroke-linejoin="round"/>
+<text x="662" y="696" font-size="18" fill="#246c9e" font-weight="400" text-anchor="start">D</text>
+<circle cx="850" cy="705" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="860" y="696" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">SEL−</text>
+<path d="M530 590 L530 555" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="530" cy="555" r="4" fill="white" stroke="#183442" stroke-width="2.5"/>
+<text x="540" y="546" font-size="19" fill="#183442" font-weight="700" text-anchor="start">3.3 V</text>
+<path d="M650 815 L650 848" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M650 848 L650 860" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M635 860 L665 860" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M640 867 L660 867" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M645 874 L655 874" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="670" y="834" font-size="17" fill="#183442" font-weight="400" text-anchor="start">VSS + GND</text>
+<path d="M410 815 L410 850" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="410" cy="850" r="4" fill="white" stroke="#73558c" stroke-width="2.5"/>
+<text x="400" y="841" font-size="19" fill="#73558c" font-weight="700" text-anchor="end">ADDRESS</text>
+<path d="M540 815 L540 850" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="540" cy="850" r="4" fill="white" stroke="#73558c" stroke-width="2.5"/>
+<text x="550" y="841" font-size="19" fill="#73558c" font-weight="700" text-anchor="start">ENABLE</text>
+<rect x="1180" y="355" width="430" height="360" fill="#f2f7fb" stroke="#246c9e" stroke-width="2"/>
+<text x="1395" y="402" font-size="27" fill="#246c9e" font-weight="700" text-anchor="middle">AD8276BRZ</text>
+<text x="1395" y="434" font-size="19" fill="#246c9e" font-weight="400" text-anchor="middle">Difference amplifier · gain 1</text>
+<circle cx="1000" cy="490" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="1010" y="481" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">SEL+</text>
+<path d="M1000 490 L1180 490" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1200" y="498" font-size="19" fill="#246c9e" font-weight="400" text-anchor="start">+IN</text>
+<circle cx="1000" cy="590" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="1010" y="581" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">SEL−</text>
+<path d="M1000 590 L1180 590" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1200" y="598" font-size="19" fill="#246c9e" font-weight="400" text-anchor="start">−IN</text>
+<path d="M1395 355 L1395 285" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="1395" cy="285" r="4" fill="white" stroke="#183442" stroke-width="2.5"/>
+<text x="1405" y="276" font-size="19" fill="#183442" font-weight="700" text-anchor="start">3.3 V</text>
+<text x="1412" y="340" font-size="18" fill="#183442" font-weight="400" text-anchor="start">+VS</text>
+<path d="M1280 715 L1280 775" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1280 775 L1280 787" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1265 787 L1295 787" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1270 794 L1290 794" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1275 801 L1285 801" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1220" y="696" font-size="18" fill="#183442" font-weight="400" text-anchor="start">REF</text>
+<path d="M1430 715 L1430 775" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1430 775 L1430 787" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1415 787 L1445 787" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1420 794 L1440 794" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1425 801 L1435 801" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1390" y="696" font-size="18" fill="#183442" font-weight="400" text-anchor="start">−VS</text>
+<text x="1545" y="554" font-size="18" fill="#246c9e" font-weight="400" text-anchor="start">OUT</text>
+<path d="M1610 565 L1670 565" fill="none" stroke="#246c9e" stroke-width="3" stroke-linejoin="round"/>
+<circle cx="1670" cy="565" r="4.5" fill="#246c9e"/>
+<text x="1518" y="646" font-size="18" fill="#246c9e" font-weight="400" text-anchor="start">SENSE</text>
+<path d="M1610 650 L1670 650 L1670 565" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1695 565 L1710 565" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="1710" y="555" width="50" height="20" fill="white" stroke="#246c9e" stroke-width="2"/>
+<path d="M1760 565 L1775 565" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1735" y="543" font-size="19" fill="#246c9e" font-weight="400" text-anchor="middle">100 Ω</text>
+<path d="M1670 565 L1695 565" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1775 565 L1885 565" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="1885" cy="565" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="1875" y="556" font-size="19" fill="#246c9e" font-weight="700" text-anchor="end">V MEAS</text>
+<circle cx="1810" cy="565" r="4.5" fill="#246c9e"/>
+<path d="M1810 620 L1810 642" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1795 642 L1825 642" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1795 651 L1825 651" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1810 651 L1810 680" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1833" y="653" font-size="18" fill="#246c9e" font-weight="400" text-anchor="start">100 pF</text>
+<path d="M1810 565 L1810 620" fill="none" stroke="#246c9e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1810 680 L1810 692" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1795 692 L1825 692" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1800 699 L1820 699" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1805 706 L1815 706" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1000" y="865" font-size="21" fill="#183442" font-weight="400" text-anchor="start">Both selectors use the same three address signals and enable signal.</text>
+<rect x="40" y="960" width="1260" height="435" fill="#fcfdfe" stroke="#dce4e8" stroke-width="1.5"/>
+<text x="62" y="998" font-size="24" fill="#183442" font-weight="700" text-anchor="start">B  Local measurement and independent pulse control</text>
+<rect x="490" y="1030" width="675" height="260" fill="#f3f6f9" stroke="#71838e" stroke-width="2"/>
+<text x="825" y="1075" font-size="27" fill="#183442" font-weight="700" text-anchor="middle">TEENSY 4.1</text>
+<circle cx="80" cy="1135" r="4" fill="white" stroke="#207962" stroke-width="2.5"/>
+<text x="90" y="1126" font-size="19" fill="#207962" font-weight="700" text-anchor="start">I 1 … I 8</text>
+<path d="M80 1135 L490 1135" fill="none" stroke="#207962" stroke-width="2.8" stroke-linejoin="round"/>
+<text x="515" y="1142" font-size="21" fill="#183442" font-weight="400" text-anchor="start">Analog in: eight individual currents</text>
+<circle cx="80" cy="1205" r="4" fill="white" stroke="#246c9e" stroke-width="2.5"/>
+<text x="90" y="1196" font-size="19" fill="#246c9e" font-weight="700" text-anchor="start">V MEAS</text>
+<path d="M80 1205 L490 1205" fill="none" stroke="#246c9e" stroke-width="2.8" stroke-linejoin="round"/>
+<text x="515" y="1212" font-size="21" fill="#183442" font-weight="400" text-anchor="start">Analog in: selected voltage</text>
+<text x="515" y="1265" font-size="20" fill="#183442" font-weight="700" text-anchor="start">Temperature estimates and pulse cutoff run locally.</text>
+<path d="M560 1290 L560 1325" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="560" cy="1325" r="4" fill="white" stroke="#73558c" stroke-width="2.5"/>
+<text x="550" y="1316" font-size="19" fill="#73558c" font-weight="700" text-anchor="end">DRIVE 1 … 8</text>
+<path d="M810 1290 L810 1325" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="810" cy="1325" r="4" fill="white" stroke="#73558c" stroke-width="2.5"/>
+<text x="820" y="1316" font-size="19" fill="#73558c" font-weight="700" text-anchor="start">ADDRESS</text>
+<path d="M1100 1290 L1100 1325" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="1100" cy="1325" r="4" fill="white" stroke="#73558c" stroke-width="2.5"/>
+<text x="1110" y="1316" font-size="19" fill="#73558c" font-weight="700" text-anchor="start">ENABLE</text>
+<text x="400" y="1365" font-size="18" fill="#73558c" font-weight="400" text-anchor="start">8 independent outputs</text>
+<text x="800" y="1365" font-size="18" fill="#73558c" font-weight="400" text-anchor="start">3 outputs</text>
+<text x="1070" y="1365" font-size="18" fill="#73558c" font-weight="400" text-anchor="start">1 output</text>
+<path d="M1165 1090 L1240 1090" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="1240" cy="1090" r="4" fill="white" stroke="#183442" stroke-width="2.5"/>
+<text x="1230" y="1081" font-size="19" fill="#183442" font-weight="700" text-anchor="end">3.3 V</text>
+<text x="1095" y="1108" font-size="16" fill="#183442" font-weight="400" text-anchor="start">OUT</text>
+<path d="M1165 1245 L1240 1245" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1240 1245 L1240 1257" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1225 1257 L1255 1257" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1230 1264 L1250 1264" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1235 1271 L1245 1271" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1180" y="1232" font-size="17" fill="#183442" font-weight="400" text-anchor="start">GND</text>
+<rect x="1330" y="960" width="630" height="435" fill="#fcfdfe" stroke="#dce4e8" stroke-width="1.5"/>
+<text x="1352" y="998" font-size="24" fill="#183442" font-weight="700" text-anchor="start">C  Supply bypass and default enable state</text>
+<circle cx="1435" cy="1080" r="4" fill="white" stroke="#183442" stroke-width="2.5"/>
+<text x="1445" y="1071" font-size="19" fill="#183442" font-weight="700" text-anchor="start">3.3 V</text>
+<path d="M1435 1080 L1435 1102" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1420 1102 L1450 1102" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1420 1111 L1450 1111" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1435 1111 L1435 1140" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1458" y="1113" font-size="18" fill="#183442" font-weight="400" text-anchor="start">100 nF ×3</text>
+<path d="M1435 1140 L1435 1152" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1420 1152 L1450 1152" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1425 1159 L1445 1159" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1430 1166 L1440 1166" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1500" y="1180" font-size="18" fill="#183442" font-weight="400" text-anchor="start">One at each shared analog IC</text>
+<circle cx="1450" cy="1240" r="4" fill="white" stroke="#73558c" stroke-width="2.5"/>
+<text x="1460" y="1231" font-size="19" fill="#73558c" font-weight="700" text-anchor="start">ENABLE</text>
+<path d="M1450 1240 L1450 1255" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="1440" y="1255" width="20" height="45" fill="white" stroke="#73558c" stroke-width="2"/>
+<path d="M1450 1300 L1450 1315" fill="none" stroke="#73558c" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1470" y="1285" font-size="19" fill="#73558c" font-weight="400" text-anchor="start">10 kΩ</text>
+<path d="M1450 1315 L1450 1327" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1435 1327 L1465 1327" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1440 1334 L1460 1334" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M1445 1341 L1455 1341" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
+<text x="1620" y="1260" font-size="19" fill="#73558c" font-weight="400" text-anchor="start">HIGH: selected channel</text>
+<text x="1620" y="1295" font-size="19" fill="#73558c" font-weight="400" text-anchor="start">LOW: disconnected</text>
+<text x="50" y="1440" font-size="20" fill="#71838e" font-weight="400" text-anchor="start">PC ↔ USB ↔ Teensy for settings and logs · USB powers Teensy at 5 V; analog ICs and control signals use 3.3 V</text>
+</svg>
