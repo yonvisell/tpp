@@ -31,15 +31,15 @@ Wrap each wire end around a smooth post or thicker lead and secure it under a cl
 
 **Goal:** make lead resistance small compared with the heated wire resistance.
 
-Representative NiCr80 resistivity, $1.09\times10^{-6}\ \Omega\,\mathrm m$, gives approximately **1,440 Ω/m** at 31 µm diameter. A stable 1 Ω series contribution is **0.07%** of a one-metre winding.
+Representative NiCr80 resistivity, $`1.09\times10^{-6}\ \Omega\,\mathrm m`$, gives approximately **1,440 Ω/m** at 31 µm diameter. A stable 1 Ω series contribution is **0.07%** of a one-metre winding.
 
 A total of **0.6 m of 0.5 mm NiCr leads contributes about 3.3 Ω**. A 7% change adds 0.23 Ω, or **0.016%** of the winding resistance. Measure and subtract the room-temperature lead resistance; include its temperature-dependent remainder in the uncertainty. Ultrafine leads of the same length would contribute about **866 Ω**.
 
 The kiln supplies heat and the meter supplies a small measuring current. Passing the pixel's approximate **0.47 A** through one metre would require
 
-$$
+```math
 V=IR\approx0.47\times1440\approx680\ \mathrm V.
-$$
+```
 
 The long winding therefore serves externally heated calibration. A measuring current near **100 µA** dissipates only **14 µW** in one metre.
 
@@ -55,12 +55,12 @@ The long winding therefore serves externally heated calibration. A measuring cur
 
 Save temperature, meter reading, lead correction and normalized resistance:
 
-$$
+```math
 q(T)=\frac{R_{\mathrm{meas}}(T)-R_{\mathrm{leads}}(T)}
 {R_{\mathrm{meas}}(T_0)-R_{\mathrm{leads}}(T_0)},
-$$
+```
 
-where $T_0$ is the room-temperature reference. Store measurement and interpolation uncertainty separately. If the actual curve has several extrema, place additional references around those extrema.
+where $`T_0`$ is the room-temperature reference. Store measurement and interpolation uncertainty separately. If the actual curve has several extrema, place additional references around those extrema.
 
 An initial **0.1% resistance-error allocation** is 0.05% meter, 0.02% residual lead effects and 0.03% connection/repeatability effects. Replace these allocations with measured or specified values. A **±5–10 °C** temperature-reference target combines probe uncertainty and spatial variation. The resulting temperature resolution also depends on the local resistance-curve slope.
 
@@ -70,7 +70,7 @@ An initial **0.1% resistance-error allocation** is 0.05% meter, 0.02% residual l
 
 **Opening the kiln before attaching clips changes the wire temperature.** A free 31 µm wire has an illustrative cooling time of **0.1–0.2 s** near 800 °C for convection of 100–300 W/(m² K) plus radiation. Its ceramic support can remain hot while the wire cools; contact conductance determines their temperature difference. Connect the meter before heating and read it with the kiln closed.
 
-**A series-connected foil does not establish the wire temperature.** At equal current, heating per exposed surface area scales as $1/(A\mathcal P)$, where $A$ is cross-sectional area and $\mathcal P$ exposed perimeter. A **15 µm-thick, 1 mm-wide foil receives about 414 times less heating per surface area** than a 31 µm wire. Length cancels from this interior heat balance; support and end losses further affect equilibrium.
+**A series-connected foil does not establish the wire temperature.** At equal current, heating per exposed surface area scales as $`1/(A\mathcal P)`$, where $`A`$ is cross-sectional area and $`\mathcal P`$ exposed perimeter. A **15 µm-thick, 1 mm-wide foil receives about 414 times less heating per surface area** than a 31 µm wire. Length cancels from this interior heat balance; support and end losses further affect equilibrium.
 
 An unpowered foil can share the winding's temperature in a uniform enclosure, but optical measurement also requires sufficient target area, known emissivity and optical access. The adjacent reference probe measures the calibration temperature directly.
 

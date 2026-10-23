@@ -53,6 +53,6 @@ The import list is `src/documents.mjs`. Synchronization copies selected images a
 
 ## Rendering and checks
 
-Pseudocode fences render as proportional-font procedure lists, retaining indentation as list hierarchy and preserving literal operators. Repository Markdown uses GitHub-compatible `$...$` and `$$...$$` mathematics and relative image paths. Synchronization converts the original math delimiters outside code fences; the site renderer also supports `\(...\)` and `\[...\]`. KaTeX errors fail the build rather than appearing silently on the page.
+Pseudocode fences render as proportional-font procedure lists, retaining indentation as list hierarchy and preserving literal operators. Repository Markdown protects inline TeX with dollar/backtick delimiters and display TeX with `math` fences. Images use relative paths. Synchronization converts the original math delimiters outside code fences and verifies every equation payload. KaTeX errors fail the build rather than appearing silently on the page.
 
 `node scripts/check.mjs` checks local resources, heading anchors, equation output, downloads and private-path leakage. Browser inspection remains useful for layout and interactions. The vendored KaTeX license is included with its styles and fonts.

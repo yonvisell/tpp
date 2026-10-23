@@ -1,32 +1,32 @@
 {
-  "generatedAt": "2026-10-23T23:15:34.680Z",
+  "generatedAt": "2026-10-23T23:19:17.045Z",
   "documents": [
     {
       "id": "controller",
       "title": "Temperature control for thermopneumatic pixels",
       "sourceFile": "TactileTeleopControllerRev07.md",
-      "sha256": "c16eb812e7bd214a5b0f97dee88cd00f7f2fbd7893c16b60d889a6ecaaeefb0b",
+      "sha256": "7139870088723ec107a1aff7f0d6c8260cf1939fae1c8fdf799a7477805e3dd8",
       "sections": 12
     },
     {
       "id": "macro",
       "title": "MacroTPP: circuit, calibration and operation",
       "sourceFile": "MacroTPP-MVP.md",
-      "sha256": "5c042195e82544ce5b593ac9957b2c4a9a05c6936d59c2422970eeb993b1d1c8",
+      "sha256": "11c85ac7adeede44499ac74f5b1ba1777a264755e2b84191ac6df9d59d1c6940",
       "sections": 19
     },
     {
       "id": "wire-array",
       "title": "Wire TPP array — circuit and temperature control",
       "sourceFile": "WireArray-MVP.md",
-      "sha256": "84a68f58603ee6d1ef3f32017f31c86c19100d2d3f69b013b828aa2948a5b136",
+      "sha256": "7d264e59db113c6e8676d933af23561efdf9addcca8027c5e5ca58529a663cea",
       "sections": 11
     },
     {
       "id": "wire-temperature",
       "title": "Wire-temperature calibration",
       "sourceFile": "WireTemperature-Calibration.md",
-      "sha256": "cb8997daa9b2dcb82068dc108ced823657bcd2d1301803f624bc650660cebbb8",
+      "sha256": "2cd0d5c63bc2c908ec555ae8441cea9158a775ffcab61bac0981eafec620bac3",
       "sections": 4
     }
   ],

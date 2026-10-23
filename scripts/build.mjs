@@ -23,9 +23,10 @@ const mathCounts = {block:0, inline:0};
 const md = new MarkdownIt({html:false, linkify:false, typographer:false});
 md.inline.ruler.before('escape','inline_math',(state,silent) => {
   const slash=state.src.startsWith('\\(',state.pos);
+  const quoted=state.src.startsWith('$`',state.pos);
   const dollar=state.src[state.pos]==='$'&&state.src[state.pos+1]!=='$';
   if(!slash&&!dollar)return false;
-  const width=slash?2:1, close=slash?'\\)':'$';
+  const width=slash||quoted?2:1, close=slash?'\\)':quoted?'`$':'$';
   let end=state.src.indexOf(close,state.pos+width);
   while(end>=0&&state.src[end-1]==='\\'&&dollar)end=state.src.indexOf(close,end+1);
   if (end < 0) return false;
@@ -76,6 +77,7 @@ function renderProcedure(text) {
 }
 md.renderer.rules.fence = (tokens,i) => {
   const token=tokens[i];
+  if(token.info.trim()==='math'){mathCounts.block++;return `<div class="math-block">${renderMath(token.content.trim(),true)}</div>\n`;}
   if (/→|─|└|│/.test(token.content) && /MOSFET|Supply|supply|heater|ground/.test(token.content) && !/pseudocode/.test(token.info)) return `<pre class="wiring">${esc(token.content)}</pre>\n`;
   return renderProcedure(token.content);
 };

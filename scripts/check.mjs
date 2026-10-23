@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {mathSource} from './math-source.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../dist');
 const content=path.resolve(root,'../content');
 const errors=[];
@@ -33,6 +34,11 @@ for(const name of await fs.readdir(content)){
  if(!name.endsWith('.md'))continue;
  const source=await fs.readFile(path.join(content,name),'utf8');
  const html=await fs.readFile(path.join(root,name.replace(/\.md$/,'.html')),'utf8');
+ const normalizeIndent=text=>text.split('\n').map(line=>line.trimStart()).join('\n').trim();
+ const expectedMath=mathSource(source).expressions.map(x=>normalizeIndent(x.tex));
+ const decode=text=>text.replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g,x=>({'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&#39;':"'"}[x]));
+ const renderedMath=[...html.matchAll(/<annotation encoding="application\/x-tex">([\s\S]*?)<\/annotation>/g)].map(m=>normalizeIndent(decode(m[1])));
+ if(JSON.stringify(expectedMath)!==JSON.stringify(renderedMath))errors.push(`Equation payload/order changed in HTML: ${name}`);
  let fence=null,procedure=false;
  for(const line of source.split('\n')){
   const marker=line.match(/^\s*(`{3,}|~{3,})(.*)$/);
@@ -42,7 +48,8 @@ for(const name of await fs.readdir(content)){
    continue;
   }
   if(fence){if(procedure&&line.trim()&&!html.includes(`<span>${esc(line.trim())}</span>`))errors.push(`Pseudocode text changed: ${name}: ${line.trim()}`);continue;}
-  if(/\\[\[\]()]/.test(line))errors.push(`Non-GitHub math delimiter: ${name}`);
+  if(/\\[\[\]()]|\$\$/.test(line))errors.push(`Unprotected GitHub math delimiter: ${name}`);
+  if(/\$(?!`)|(?<!`)\$/.test(line.replace(/\$`[^`]*`\$/g,'')))errors.push(`Unprotected inline dollar: ${name}`);
  }
  for(const m of source.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)){
   if(!m[1].startsWith('../src/figures/'))errors.push(`Nonportable source image: ${name}: ${m[1]}`);

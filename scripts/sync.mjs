@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {pages} from '../src/documents.mjs';
+import {mathSource} from './math-source.mjs';
 const site=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const index=process.argv.indexOf('--source-root');
 if(index<0||!process.argv[index+1]) throw new Error('Usage: node scripts/sync.mjs --source-root /path/to/document-workspace [--latex relative-file.tex]');
@@ -9,19 +10,6 @@ const sourceRoot=path.resolve(process.argv[index+1]);
 const contentDir=path.join(site,'content');
 const figureDir=path.join(site,'src/figures');
 const exists=async file=>{try{await fs.access(file);return true;}catch{return false;}};
-function githubMath(source) {
-  let fence=null;
-  return source.split('\n').map(line=>{
-    const marker=line.match(/^\s*(`{3,}|~{3,})/);
-    if(marker){
-      if(!fence) fence={char:marker[1][0],length:marker[1].length};
-      else if(marker[1][0]===fence.char&&marker[1].length>=fence.length) fence=null;
-      return line;
-    }
-    if(fence)return line;
-    return line.replace(/\\\[/g,()=> '$$').replace(/\\\]/g,()=> '$$').replace(/\\\(/g,()=> '$').replace(/\\\)/g,()=> '$');
-  }).join('\n');
-}
 await fs.mkdir(contentDir,{recursive:true});
 await fs.mkdir(figureDir,{recursive:true});
 async function sanitize(raw, origin) {
@@ -42,13 +30,18 @@ async function sanitize(raw, origin) {
   raw = raw.replace(/(?<!!)\[([^\]]+)\]\((?:[^()]|\([^)]*\))*\)/g, '$1');
   raw = raw.replace(/<https?:\/\/[^>]+>/g, '').replace(/https?:\/\/[^\s<>]+/g, '');
   if (/\/Users\/|\/home\/|\.chatgpt-projects|mailto:|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(raw)) throw new Error(`Private path or email remains in ${path.basename(origin)}`);
-  return githubMath(raw).trim() + '\n';
+  return mathSource(raw).text.trim() + '\n';
 }
 
 
+const mathCounts={block:0,inline:0};
 for(const page of pages){
  const original=path.join(sourceRoot,page.source);
- const sanitized=await sanitize(await fs.readFile(original,'utf8'),original);
+ const originalText=await fs.readFile(original,'utf8');
+ const sanitized=await sanitize(originalText,original);
+ const before=mathSource(originalText).expressions,after=mathSource(sanitized).expressions;
+ if(JSON.stringify(before)!==JSON.stringify(after))throw new Error(`Equation payload changed during export: ${page.id}`);
+ for(const expression of after)mathCounts[expression.display?'block':'inline']++;
  await fs.writeFile(path.join(contentDir,`${page.id}.md`),sanitized);
 }
 const latexIndex=process.argv.indexOf('--latex');
@@ -63,3 +56,4 @@ if(latexIndex>=0){
  await fs.writeFile(path.join(contentDir,'latex',path.basename(source)),text);
 }
 console.log(`Synchronized ${pages.length} selected documents and their circuit figures into repository content.`);
+console.log(`Verified all equation payloads: ${mathCounts.block} display, ${mathCounts.inline} inline.`);
