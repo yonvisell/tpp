@@ -104,7 +104,7 @@ function navigation(active) {
 function pageTemplate(page, data, body, home=false) {
   const sequence=pages.filter(p=>!p.unreviewed), idx=sequence.findIndex(p=>p.id===page.id), prev=sequence[idx-1], next=idx>=0?sequence[idx+1]:null;
   const toc=data.headings?.length?`<aside class="toc" aria-label="On this page"><p class="toc-label">On this page</p>${data.headings.map(h=>`<a href="#${h.id}"${h.level==='h3'?' class="toc-sub"':''}>${esc(h.label)}</a>`).join('')}</aside>`:'<aside></aside>';
-  const tools=home?'':`<div class="doc-tools"><a href="downloads/${page.id}.md" download>Download Markdown ↓</a><button class="text-button" type="button" data-print>Print / save PDF</button></div>`;
+  const tools=home?'':`<div class="doc-tools"><a href="downloads/${page.id}.md" download>Download Markdown ↓</a>${page.id==='simulation'?'<a href="downloads/simulation-files.zip" download>Code and data ZIP ↓</a>':''}<button class="text-button" type="button" data-print>Print / save PDF</button></div>`;
   const footer=home?'':`<nav class="page-footer" aria-label="Adjacent documents"><div>${prev?`<span>Previous</span><a href="${prev.id}.html">← ${esc(prev.label)}</a>`:'<span>Documentation</span><a href="index.html">← Overview</a>'}</div><div class="next">${next?`<span>Next</span><a href="${next.id}.html">${esc(next.label)} →</a>`:''}</div></nav>`;
   return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="${esc(page.description)}"><title>${home?"TPP control":esc(page.label)+" · TPP control"}</title><link rel="stylesheet" href="assets/katex/katex.min.css"><link rel="stylesheet" href="assets/site.css"><script src="assets/site.js" defer></script></head><body><a class="skip-link" href="#main">Skip to content</a><header class="site-top"><a class="brand" href="index.html">TPP control<small>Circuits · Measurement · Control</small></a><span class="top-note">Circuits and control</span><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="document-navigation">Contents</button></header><div class="layout">${navigation(page.id)}<main class="document" id="main"><header class="doc-header"><p class="eyebrow">${esc(page.section || 'Technical notes')}</p><h1>${esc(data.title)}</h1>${tools}</header>${body}${footer}</main>${toc}</div><footer class="site-footer"><span>TPP control</span><span>Circuits, calibration and local temperature control</span></footer><dialog class="image-dialog" aria-label="Enlarged figure"><div class="dialog-top"><span data-dialog-title>Figure</span><a href="#" data-original target="_blank" rel="noopener">Open original ↗</a><button class="dialog-close" type="button">Close</button></div><div class="dialog-image-wrap"><img alt="Enlarged figure"></div></dialog></body></html>\n`;
 }
@@ -120,6 +120,8 @@ if(await exists(latexDir)) {
 }
 
 const manifest=[];
+const simulationArchive=path.join(contentDir,'simulation/simulation-files.zip');
+if(pages.some(p=>p.id==='simulation'))await fs.copyFile(simulationArchive,path.join(dist,'downloads/simulation-files.zip'));
 let allDocuments='# TPP control\n\n';
 for(const page of pages) {
   const cached=path.join(contentDir,`${page.id}.md`);

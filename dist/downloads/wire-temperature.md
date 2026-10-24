@@ -10,7 +10,7 @@
 
 ## 1. Assemble the reference specimen
 
-**Purpose:** place the complete resistance-bearing length in a nearly uniform temperature field.
+Heating the entire winding to nearly one temperature lets the adjacent probe assign a temperature to its total measured resistance.
 
 1. Wind **1–2 m of same-stock wire** in one noncrossing layer around a **20 mm outside-diameter alumina tube**. At 0.5 mm pitch, 16–32 turns occupy 8–16 mm. Leave expansion slack and support the ends separately.
 2. Put the winding in a loosely covered alumina boat near the kiln center; place the reference probe beside it.
@@ -21,7 +21,7 @@ Select the kiln and supported feedthrough arrangement together. A vent opening a
 
 ## 2. Check the electrical measurement
 
-**Purpose:** quantify lead and contact errors before interpreting the wire’s resistance.
+The long fine wire makes specimen resistance much larger than lead resistance; measuring the remaining lead contribution preserves small temperature-dependent changes.
 
 Representative NiCr80 resistivity gives approximately **1440 Ω/m** for 31 µm wire. A total of 0.6 m of 0.5 mm NiCr leads adds approximately **3.3 Ω**. A 7% change in that lead resistance is 0.23 Ω, or **0.016%** of a one-metre specimen. Use measured lead resistance and the actual lead alloy’s thermal variation in the calculation.
 
@@ -35,7 +35,7 @@ A two-wire measurement is sufficient when these errors fit the required resoluti
 
 ## 3. Collect the temperature references
 
-**Purpose:** establish temperature scale, curve shape and repeatability with a small measurement set.
+A few equilibrium readings establish the temperature scale; additional points near turning regions preserve the nonmonotonic shape used by the observer.
 
 1. At equilibrium, record calibration ambient $`A_{\rm cal}`$, total resistance and lead/contact correction.
 2. At one steady elevated temperature, compare probe readings beside the winding’s center and ends. Include the spatial spread with probe uncertainty.
@@ -48,7 +48,7 @@ Equilibrium and a sufficiently uniform enclosure connect the adjacent probe read
 
 ## 4. Prepare the controller table
 
-**Purpose:** produce a reusable same-stock curve with traceable uncertainty.
+Dividing by ambient resistance removes specimen length from the curve, allowing a long calibration winding to describe a short pixel made from the same stock.
 
 For each reference calculate
 
@@ -65,6 +65,8 @@ q_{\rm cal}(T)=\frac{R_{\rm meas}(T)-R_{\rm leads}(T)}
 This experiment establishes the equilibrium material curve. Pulse-response measurements test the assembled actuator’s thermal model; resistance agreement alone does not independently measure transient temperature error.
 
 ## Appendix A. Equipment
+
+The enclosure, probe and insulated connections must cover the same upper temperature so the reference remains meaningful throughout the measurement.
 
 | Item | Configuration |
 |---|---|

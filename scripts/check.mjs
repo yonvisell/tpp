@@ -10,6 +10,7 @@ async function walk(dir){let result=[];for(const entry of await fs.readdir(dir,{
 const files=await walk(root), pages=files.filter(p=>p.endsWith('.html'));
 for(const file of files.filter(p=>/\.(html|css|js|md|svg|json)$/.test(p))){
  const s=await fs.readFile(file,'utf8');
+ if(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(s))errors.push(`Unexpected control character: ${path.relative(root,file)}`);
  if(/\/Users\/|\/home\/|\.chatgpt-projects|mailto:|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(s)) errors.push(`Private path/email: ${path.relative(root,file)}`);
  if(/\.pdf(?:["')\s]|$)/i.test(s)) errors.push(`Unexpected PDF reference: ${path.relative(root,file)}`);
 }

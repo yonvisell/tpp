@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="Pulse trains, individual pulse detail and the effect of modest model error."><title>Pulse simulations · TPP control</title><link rel="stylesheet" href="assets/katex/katex.min.css"><link rel="stylesheet" href="assets/site.css"><script src="assets/site.js" defer></script></head><body><a class="skip-link" href="#main">Skip to content</a><header class="site-top"><a class="brand" href="index.html">TPP control<small>Circuits · Measurement · Control</small></a><span class="top-note">Circuits and control</span><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="document-navigation">Contents</button></header><div class="layout"><nav class="site-nav" id="document-navigation" aria-label="Documents"><p class="nav-label">Documents</p><a href="index.html">Overview</a><a href="controller.html">Temperature control</a><a href="macro.html">Foil pixel</a><a href="wire-array.html">Wire array</a><a href="wire-temperature.html">Wire calibration</a><a href="simulation.html" aria-current="page">Pulse simulations</a><div class="nav-divider"></div><a href="downloads/all-documents.md" download>Download notes ↓</a><div class="unreviewed-nav"><a href="student-mvp.html">* Student MVP</a><p>Not yet reviewed by Yon Visell</p></div></nav><main class="document" id="main"><header class="doc-header"><p class="eyebrow">Numerical examples</p><h1>Temperature-limited pulse examples</h1><div class="doc-tools"><a href="downloads/simulation.md" download>Download Markdown ↓</a><a href="downloads/simulation-files.zip" download>Code and data ZIP ↓</a><button class="text-button" type="button" data-print>Print / save PDF</button></div></header><article class="article"><ul>
+<li><strong>A finite pulse train demonstrates why retained heat matters.</strong> The same voltage produces shorter pulses as the surroundings warm. The controller carries both temperatures through the pauses.</li>
+<li><strong>Two examples use the same requests and controller settings:</strong> a reference thermal model and a modest mismatch in heat capacity and heat transfer. Their simulated peaks are 433.9 and 433.2 °C under a 450 °C ceiling.</li>
+<li><strong>The measurements include noise and bias.</strong> Voltage and current each have 0.05% rms noise; their ratio has approximately 0.07% rms noise plus 0.05% bias. These are assumed calibrated measurement properties, not measured Teensy performance.</li>
+<li><strong>A separate ambiguity example ends a pulse early.</strong> With a deliberately wider temperature search, the measured resistance supports two branches and heating stops.</li>
+<li><strong>These are reproducible numerical examples.</strong> They demonstrate the controller's calculations and consequences under specified assumptions; they do not establish physical temperature accuracy or tactile output.</li>
+</ul>
+<h2 id="1-physical-example-and-controller-settings">1. Physical example and controller settings</h2>
+<p>The simulation separates the heater’s temperature from the controller’s estimate, making their agreement and the resulting pulse termination directly visible. The heater and surroundings obey the two-temperature equations used in Temperature-limited heating pulses; their states are integrated separately from the controller calculation.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Assumed value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Active strip</td>
+<td>10 mm × 1 mm × 15 µm; <strong>assumed geometry</strong>, not a measured prototype</td>
+</tr>
+<tr>
+<td>Metal mass and ambient resistance</td>
+<td>1.245 mg; 0.720 Ω</td>
+</tr>
+<tr>
+<td>Heat capacity</td>
+<td>Temperature dependent: 0.573 mJ/K at 20 °C; 0.784 mJ/K at 800 °C</td>
+</tr>
+<tr>
+<td>Applied heater voltage</td>
+<td>Fixed 2.70 V; approximately 3.75 A and 10.13 W initially</td>
+</tr>
+<tr>
+<td>Nominal thermal coefficients</td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="sans-serif">G</mi><mo>=</mo><mn mathvariant="sans-serif">0.010</mn></mrow><annotation encoding="application/x-tex">\mathsf{G=0.010}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord"><span class="mord mathsf">G</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathsf">0.010</span></span></span></span></span> W/K, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="sans-serif">β</mi><mo>=</mo><mn mathvariant="sans-serif">4</mn></mrow><annotation encoding="application/x-tex">\mathsf{\beta=4}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0528em;">β</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathsf">4</span></span></span></span></span> s⁻¹, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="sans-serif">γ</mi><mo>=</mo><mn mathvariant="sans-serif">1</mn></mrow><annotation encoding="application/x-tex">\mathsf{\gamma=1}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.85em;vertical-align:-0.1944em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right:0.0556em;">γ</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathsf">1</span></span></span></span></span> s⁻¹</td>
+</tr>
+<tr>
+<td>Temperature settings</td>
+<td>Ceiling <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="sans-serif">T</mi><mi mathvariant="sans-serif">c</mi></msub><mo>=</mo><mn mathvariant="sans-serif">450</mn></mrow><annotation encoding="application/x-tex">\mathsf{T_c=450}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord"><span class="mord mathsf">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1611em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathsf mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathsf">450</span></span></span></span></span> °C; assumed margin <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="sans-serif">M</mi><mo>=</mo><mn mathvariant="sans-serif">15</mn></mrow><annotation encoding="application/x-tex">\mathsf{M=15}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord"><span class="mord mathsf">M</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathsf">15</span></span></span></span></span> K; search half-width <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="sans-serif">w</mi><mo>=</mo><mn mathvariant="sans-serif">30</mn></mrow><annotation encoding="application/x-tex">\mathsf{w=30}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6556em;"></span><span class="mord"><span class="mord mathsf" style="margin-right:0.0139em;">w</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathsf">30</span></span></span></span></span> K</td>
+</tr>
+<tr>
+<td>Resistance comparison</td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="sans-serif">e</mi><mi mathvariant="sans-serif">R</mi></msub><mo>=</mo><mn mathvariant="sans-serif">0.003</mn></mrow><annotation encoding="application/x-tex">\mathsf{e_R=0.003}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8056em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord"><span class="mord mathsf">e</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3361em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathsf mtight">R</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathsf">0.003</span></span></span></span></span>, or 0.3% of ambient resistance; 1 °C table</td>
+</tr>
+<tr>
+<td>Measurement timing</td>
+<td>0.20 ms updates; 0.10 ms startup settling; 1 ms maximum data age</td>
+</tr>
+<tr>
+<td>Switch-off delay</td>
+<td>Current continues for 0.050 ms after an OFF command</td>
+</tr>
+<tr>
+<td>Power used by timer</td>
+<td><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="sans-serif">P</mi><mi>max</mi><mo>⁡</mo></msub><mo>=</mo><msup><mn mathvariant="sans-serif">2.72</mn><mn mathvariant="sans-serif">2</mn></msup><mi mathvariant="sans-serif">/</mi><mn mathvariant="sans-serif">0.720</mn><mo>=</mo><mn mathvariant="sans-serif">10.276</mn></mrow><annotation encoding="application/x-tex">\mathsf{P_{\max}=2.72^2/0.720=10.276}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1.0719em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord"><span class="mord mathsf">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mop mtight"><span class="mtight">m</span><span class="mtight">a</span><span class="mtight">x</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathsf">2.7</span><span class="mord"><span class="mord mathsf">2</span><span class="msupsub"><span class="vlist-t"><span class="vlist-r"><span class="vlist" style="height:0.8219em;"><span style="top:-3.063em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathsf mtight">2</span></span></span></span></span></span></span></span><span class="mord mathsf">/0.720</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathsf">10.276</span></span></span></span></span> W; nominal <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="sans-serif">C</mi><mi>min</mi><mo>⁡</mo></msub><mo>=</mo><mn mathvariant="sans-serif">0.573</mn></mrow><annotation encoding="application/x-tex">\mathsf{C_{\min}=0.573}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord"><span class="mord mathsf">C</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mop mtight"><span class="mtight">m</span><span class="mtight">i</span><span class="mtight">n</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathsf">0.573</span></span></span></span></span> mJ/K</td>
+</tr>
+</tbody>
+</table></div>
+<p>The normalized resistance curve comes from <strong>Alloy Wire International’s AWS180 NiCr80 datasheet, Rev.1</strong>, including its maximum near 600 °C and decline toward 800 °C. Density and heat capacity come from Kanthal’s Nikrothal 80 data. These representative properties replace the laboratory stock’s measured values for this example. Full tables and source references are included in the downloadable package.</p>
+<p>Both plant and controller use this same resistance curve. Thermal coefficients are selected, not fitted. The plant uses fourth-order Runge–Kutta integration with steps no longer than 10 µs; the controller uses the specified short Euler steps, table score, continuous-prediction candidate and local deadline. No resistance observation is supplied during OFF time.</p>
+<p>The sensor model adds +0.03% voltage bias and −0.02% current bias, with independent Gaussian noise and a fixed random seed. It represents calibrated V/I readings rather than an ADC bit-level model. Complete settled ON intervals use endpoint <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="sans-serif">V</mi><mi mathvariant="sans-serif">I</mi></mrow><annotation encoding="application/x-tex">\mathsf{VI}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord"><span class="mord mathsf">VI</span></span></span></span></span> trapezoids. Unobserved partial ON and switch-off intervals use <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="sans-serif">P</mi><mi>max</mi><mo>⁡</mo></msub></mrow><annotation encoding="application/x-tex">\mathsf{P_{\max}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathsf">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mop mtight"><span class="mtight">m</span><span class="mtight">a</span><span class="mtight">x</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>; OFF intervals use 2 µW. Switching boundaries are kept separate, so a trapezoid never crosses an edge.</p>
+<h2 id="2-two-five-pulse-sequences">2. Two five-pulse sequences</h2>
+<p>Repeated pulses test whether retained heat causes the controller to shorten later pulses. Both examples receive the same requests:</p>
+<ol>
+<li>Start pulses at <strong>0.050, 0.200, 0.350 and 0.500 s</strong>; request durations <strong>25, 50, 25 and 50 ms</strong>.</li>
+<li>Let each pulse terminate by its temperature, duration or data-age rule.</li>
+<li>Wait <strong>300 ms after current ceases in pulse 4</strong>, then request one final <strong>50 ms</strong> pulse.</li>
+</ol>
+<p><a class="figure-zoom" href="assets/figures/pulse-trains.png" data-zoom><img src="assets/figures/pulse-trains.png" alt="Pulse trains with reference and mismatched thermal parameters" loading="lazy" decoding="async"><span class="figure-label"><span>Pulse trains with reference and mismatched thermal parameters</span><span>Enlarge figure ↗</span></span></a></p>
+<p>The grey bands show requested durations. The delivered-power traces show the shorter actual pulses. In both examples, pulse 1 ends at its duration limit; pulses 2–5 end at the temperature deadline. “Current ON” includes the 50 µs delay after the OFF command.</p>
+<p><strong>A. Reference thermal model.</strong> Plant and controller share the thermal coefficients and heat capacity. Measurement errors, different numerical integration and simulated switch delay remain present. This is an implementation consistency example.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th style="text-align:right">Pulse</th>
+<th style="text-align:right">Start (s)</th>
+<th style="text-align:right">Requested (ms)</th>
+<th style="text-align:right">Current ON (ms)</th>
+<th style="text-align:right">Start metal (°C)</th>
+<th style="text-align:right">Peak metal (°C)</th>
+<th style="text-align:right">Energy (mJ)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0.050</td>
+<td style="text-align:right">25</td>
+<td style="text-align:right">25.05</td>
+<td style="text-align:right">20.0</td>
+<td style="text-align:right">361.4</td>
+<td style="text-align:right">249.2</td>
+</tr>
+<tr>
+<td style="text-align:right">2</td>
+<td style="text-align:right">0.200</td>
+<td style="text-align:right">50</td>
+<td style="text-align:right">24.17</td>
+<td style="text-align:right">117.2</td>
+<td style="text-align:right">428.8</td>
+<td style="text-align:right">238.1</td>
+</tr>
+<tr>
+<td style="text-align:right">3</td>
+<td style="text-align:right">0.350</td>
+<td style="text-align:right">25</td>
+<td style="text-align:right">18.22</td>
+<td style="text-align:right">183.6</td>
+<td style="text-align:right">424.8</td>
+<td style="text-align:right">178.9</td>
+</tr>
+<tr>
+<td style="text-align:right">4</td>
+<td style="text-align:right">0.500</td>
+<td style="text-align:right">50</td>
+<td style="text-align:right">16.17</td>
+<td style="text-align:right">218.0</td>
+<td style="text-align:right">433.9</td>
+<td style="text-align:right">158.3</td>
+</tr>
+<tr>
+<td style="text-align:right">5</td>
+<td style="text-align:right">0.816</td>
+<td style="text-align:right">50</td>
+<td style="text-align:right">16.14</td>
+<td style="text-align:right">206.6</td>
+<td style="text-align:right">427.0</td>
+<td style="text-align:right">158.3</td>
+</tr>
+</tbody>
+</table></div>
+<p>The metal begins pulse 4 near <strong>218 °C</strong>, while the surroundings are near <strong>192 °C</strong>. Even the 300 ms pause leaves substantial heat: pulse 5 begins near <strong>207 °C</strong>. Reinitializing either state to ambient would erase that history. Across settled readings, temperature-estimation RMSE is <strong>5.30 K</strong>, and the largest underestimate is <strong>7.85 K</strong> for this realization.</p>
+<p><strong>B. Modest thermal mismatch.</strong> The actual strip has <strong>8% less heat capacity</strong>, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="sans-serif">G</mi></mrow><annotation encoding="application/x-tex">\mathsf{G}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.6944em;"></span><span class="mord mathsf">G</span></span></span></span> is 10% smaller, <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="sans-serif">β</mi></mrow><annotation encoding="application/x-tex">\mathsf{\beta}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8889em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0528em;">β</span></span></span></span> is 10% larger and <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi mathvariant="sans-serif">γ</mi></mrow><annotation encoding="application/x-tex">\mathsf{\gamma}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.625em;vertical-align:-0.1944em;"></span><span class="mord mathnormal" style="margin-right:0.0556em;">γ</span></span></span></span> is 10% smaller. The controller retains the reference parameters and the same settings.</p>
+<div class="table-scroll"><table>
+<thead>
+<tr>
+<th style="text-align:right">Pulse</th>
+<th style="text-align:right">Start (s)</th>
+<th style="text-align:right">Requested (ms)</th>
+<th style="text-align:right">Current ON (ms)</th>
+<th style="text-align:right">Start metal (°C)</th>
+<th style="text-align:right">Peak metal (°C)</th>
+<th style="text-align:right">Energy (mJ)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">0.050</td>
+<td style="text-align:right">25</td>
+<td style="text-align:right">25.05</td>
+<td style="text-align:right">20.0</td>
+<td style="text-align:right">390.2</td>
+<td style="text-align:right">248.7</td>
+</tr>
+<tr>
+<td style="text-align:right">2</td>
+<td style="text-align:right">0.200</td>
+<td style="text-align:right">50</td>
+<td style="text-align:right">20.02</td>
+<td style="text-align:right">133.9</td>
+<td style="text-align:right">423.9</td>
+<td style="text-align:right">197.2</td>
+</tr>
+<tr>
+<td style="text-align:right">3</td>
+<td style="text-align:right">0.350</td>
+<td style="text-align:right">25</td>
+<td style="text-align:right">16.25</td>
+<td style="text-align:right">194.8</td>
+<td style="text-align:right">433.1</td>
+<td style="text-align:right">159.4</td>
+</tr>
+<tr>
+<td style="text-align:right">4</td>
+<td style="text-align:right">0.500</td>
+<td style="text-align:right">50</td>
+<td style="text-align:right">13.02</td>
+<td style="text-align:right">235.2</td>
+<td style="text-align:right">429.5</td>
+<td style="text-align:right">127.4</td>
+</tr>
+<tr>
+<td style="text-align:right">5</td>
+<td style="text-align:right">0.813</td>
+<td style="text-align:right">50</td>
+<td style="text-align:right">13.80</td>
+<td style="text-align:right">225.3</td>
+<td style="text-align:right">433.2</td>
+<td style="text-align:right">135.1</td>
+</tr>
+</tbody>
+</table></div>
+<p>The actual strip heats faster, and resistance correction changes the estimated trajectory. Pulse 2 therefore lasts <strong>20.02 ms</strong>, compared with <strong>24.17 ms</strong> in the reference case. The settled-reading RMSE is <strong>4.94 K</strong> and the largest underestimate is <strong>9.40 K</strong>. The smaller RMSE is specific to this noise and bias realization; it is not evidence that model error improves estimation.</p>
+<p>The deliberately reduced actual heat capacity is also a calibration error in the timer's <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="sans-serif">C</mi><mi>min</mi><mo>⁡</mo></msub></mrow><annotation encoding="application/x-tex">\mathsf{C_{\min}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord mathsf">C</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mop mtight"><span class="mtight">m</span><span class="mtight">i</span><span class="mtight">n</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span>. Its nominal <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="sans-serif">P</mi><mi>max</mi><mo>⁡</mo></msub><mi mathvariant="sans-serif">/</mi><msub><mi mathvariant="sans-serif">C</mi><mi>min</mi><mo>⁡</mo></msub></mrow><annotation encoding="application/x-tex">\mathsf{P_{\max}/C_{\min}}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:1em;vertical-align:-0.25em;"></span><span class="mord"><span class="mord"><span class="mord mathsf">P</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1514em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mop mtight"><span class="mtight">m</span><span class="mtight">a</span><span class="mtight">x</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mord mathsf">/</span><span class="mord"><span class="mord mathsf">C</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.3175em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mop mtight"><span class="mtight">m</span><span class="mtight">i</span><span class="mtight">n</span></span></span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span></span></span></span></span> is consequently <strong>not a valid heating-rate bound for this mismatched plant</strong>. Remaining below the ceiling in this trace demonstrates this example's tolerance, not a general temperature guarantee.</p>
+<h2 id="3-one-pulse-in-detail">3. One pulse in detail</h2>
+<p>The close-up shows how electrical readings and a scheduled switch-off end heating during a pulse. Pulse 2 of the mismatch case begins near <strong>134 °C</strong>. The command requests 50 ms at 2.70 V. As resistance increases, delivered power decreases slightly; resistance readings correct the thermal prediction throughout conduction.</p>
+<p><a class="figure-zoom" href="assets/figures/pulse-detail.png" data-zoom><img src="assets/figures/pulse-detail.png" alt="Mismatch pulse 2 temperature, power and resistance" loading="lazy" decoding="async"><span class="figure-label"><span>Mismatch pulse 2 temperature, power and resistance</span><span>Enlarge figure ↗</span></span></a></p>
+<p>The timer issues OFF at <strong>19.973 ms</strong>; current ceases at <strong>20.023 ms</strong>. The pulse delivers <strong>197.2 mJ</strong>, and the simulated metal peaks at <strong>423.9 °C</strong>. Termination precedes the nominal <span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi mathvariant="sans-serif">T</mi><mi mathvariant="sans-serif">c</mi></msub><mo>−</mo><mi mathvariant="sans-serif">M</mi><mo>=</mo><mn mathvariant="sans-serif">435</mn></mrow><annotation encoding="application/x-tex">\mathsf{T_c-M=435}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="katex-base"><span class="katex-strut" style="height:0.8444em;vertical-align:-0.15em;"></span><span class="mord"><span class="mord"><span class="mord mathsf">T</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height:0.1611em;"><span style="top:-2.55em;margin-left:0em;margin-right:0.05em;"><span class="pstrut" style="height:2.7em;"></span><span class="katex-sizing reset-size6 size3 mtight"><span class="mord mathsf mtight">c</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height:0.15em;"><span></span></span></span></span></span></span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mbin">−</span><span class="mspace" style="margin-right:0.2222em;"></span><span class="mord mathsf">M</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right:0.2778em;"></span><span class="mord mathsf">435</span></span></span></span></span> °C estimated threshold because the deadline reserves further heating before switch-off. Measurement bias and noise also affect the correction. Afterward, both states continue cooling; resistance measurements stop.</p>
+<h2 id="4-supplementary-branch-ambiguity-check">4. Supplementary branch-ambiguity check</h2>
+<p>The wider search exposes the case where one resistance reading supports two separated temperatures, testing the decision to stop heating. The reference thermal model receives <strong>one 100 ms request</strong>, a <strong>750 °C ceiling</strong> and a deliberately wider <strong>±150 K search</strong>.</p>
+<p><a class="figure-zoom" href="assets/figures/branch-ambiguity.png" data-zoom><img src="assets/figures/branch-ambiguity.png" alt="Early stop and two resistance-compatible temperature branches" loading="lazy" decoding="async"><span class="figure-label"><span>Early stop and two resistance-compatible temperature branches</span><span>Enlarge figure ↗</span></span></a></p>
+<p>At <strong>37.800 ms</strong>, the prediction is <strong>484.6 °C</strong> and measured normalized resistance is <strong>1.06173</strong>. The table test passes two separated groups: <strong>468–499 °C</strong> and <strong>628–634 °C</strong>. The controller stops; current ceases at <strong>37.850 ms</strong>. Delivered energy is <strong>372.7 mJ</strong>, and the simulated temperature peaks at <strong>477.2 °C</strong>. The ceiling does not cause this termination—the unresolved branch does.</p>
+<p>The broad-search case also has a larger maximum underestimate, <strong>22.9 K</strong>, exceeding the assumed 15 K margin before its ambiguity stop. It illustrates why an operating search width and temperature allowance need independent evidence; one successful lower-temperature sequence cannot establish either over the whole material curve.</p>
+<h2 id="5-reproduce-and-inspect">5. Reproduce and inspect</h2>
+<p>The code and data reproduce each pulse and allow the numerical result to be checked independently. The download contains the fixed-seed script, exact material tables, per-pulse records, complete traces and run instructions. Running <code>python3 simulate.py</code> regenerates all three examples.</p>
+<p>The simulation supplies its own temperature reference by construction. It omits spatial hotspots, contact changes, material-curve error and detailed sensor/ADC dynamics. Its useful conclusions are the pulse sequence, retained-heat effect, resistance-correction behavior and explicit ambiguity stop under these stated assumptions. Physical validation remains the separate experiment described in the controller note.</p>
+</article><nav class="page-footer" aria-label="Adjacent documents"><div><span>Previous</span><a href="wire-temperature.html">← Wire calibration</a></div><div class="next"></div></nav></main><aside class="toc" aria-label="On this page"><p class="toc-label">On this page</p><a href="#1-physical-example-and-controller-settings">1. Physical example and controller settings</a><a href="#2-two-five-pulse-sequences">2. Two five-pulse sequences</a><a href="#3-one-pulse-in-detail">3. One pulse in detail</a><a href="#4-supplementary-branch-ambiguity-check">4. Supplementary branch-ambiguity check</a><a href="#5-reproduce-and-inspect">5. Reproduce and inspect</a></aside></div><footer class="site-footer"><span>TPP control</span><span>Circuits, calibration and local temperature control</span></footer><dialog class="image-dialog" aria-label="Enlarged figure"><div class="dialog-top"><span data-dialog-title>Figure</span><a href="#" data-original target="_blank" rel="noopener">Open original ↗</a><button class="dialog-close" type="button">Close</button></div><div class="dialog-image-wrap"><img alt="Enlarged figure"></div></dialog></body></html>

@@ -10,7 +10,7 @@
 
 ## 1. Connect power and measurement paths
 
-**Purpose:** measure heat delivered to the foil separately from losses in the cables and switch.
+Separate voltage-sense leads exclude cable and switch losses, so measured electrical power corresponds to heat delivered to the foil.
 
 1. Connect supply positive → foil → INA253 current path → MOSFET → supply negative.
 2. Attach two heavier power wires and **two separate sense wires at the foil pads**. Connect each sense wire to a 1 kΩ/1 kΩ divider.
@@ -22,7 +22,7 @@ For approximately 1 Ω foil, 2, 3 and 4 V **across the foil** produce 4, 9 and 1
 
 ## 2. Calibrate the electrical readings
 
-**Purpose:** convert three ADC readings into foil voltage, current and resistance.
+Electrical calibration makes a resistance change attributable to the foil rather than sensor gain or offset.
 
 Use the final electronics and cables. Initially replace the foil with a stable 1 Ω resistor whose continuous rating exceeds the calibration power $`I^2R`$.
 
@@ -49,9 +49,12 @@ Here $`I_s`$ is calibrated sensor-branch current and $`D`$ is the negative divid
 
 ## 3. Establish the temperature scale
 
-**Purpose:** attach an independently measured temperature to the resistance curve.
+The pyrometer gives the temperature scale that electrical readings alone cannot supply. Heat capacity supplies the second physical scale: how much electrical energy raises the foil temperature by one degree.
 
-Measure the active foil length, width and thickness; calculate mass $`m=\rho lwd`$ using alloy density $`\rho`$. Store heat capacity $`C(T)=m c_p(T)`$, where $`c_p(T)`$ is alloy specific heat. Keep uncertainty in thickness, active dimensions and material data with this table.
+1. Measure active foil length, width and thickness; calculate mass $`m=\rho lwd`$ using alloy density $`\rho`$.
+2. Store heat capacity $`C(T)=m c_p(T)`$, where $`c_p(T)`$ is alloy specific heat. Keep uncertainty in dimensions and material data with this table.
+
+Measure the resistance–temperature curve:
 
 1. Record calibration ambient temperature $`A_{\rm cal}`$ and foil resistance $`R_{\rm cal}`$ after equilibration.
 2. Hold the switch on at a low DC voltage. Once both electrical readings and pyrometer temperature remain stable within instrument repeatability, record $`V,I,T`$.
@@ -65,9 +68,7 @@ Only spatially consistent equilibrium points establish the material curve. If ce
 
 ## 4. Fit, check and operate
 
-**Purpose:** connect the calibrated circuit to useful temperature-controlled pulses.
-
-The controller estimates foil temperature $`T`$ and surroundings temperature $`S`$. Its three fitted coefficients describe heat transfer between them and cooling toward ambient $`A`$. Use the explicit fitting and update calculations in Temperature control.
+Electrical power predicts how fast the foil heats; resistance checks that prediction; the surroundings state accounts for heat left by earlier pulses. The controller estimates foil temperature $`T`$ and surroundings temperature $`S`$, with three fitted coefficients for heat exchange and cooling toward ambient $`A`$. Use the explicit calculations in Temperature control.
 
 1. Load electrical calibration, $`R_0`$, resistance and heat-capacity tables, fitted coefficients and pulse limits. Start after the established cooldown, with $`T=S=A`$.
 2. Request a finite sequence of **fixed-amplitude pulses**, specifying temperature ceiling $`T_c`$, maximum duration and repetition interval.
@@ -78,6 +79,8 @@ The controller estimates foil temperature $`T`$ and surroundings temperature $`S
 After a processor reset, keep power disabled for the cooldown measured after the hottest permitted run. This establishes the initial thermal state for the next sequence.
 
 ## Appendix A. Components and pins
+
+These connections implement the separate power, current and terminal-voltage paths in the circuit figure.
 
 | Item | Selected configuration |
 |---|---|

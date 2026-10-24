@@ -12,7 +12,7 @@
 
 ## 1. Build the repeated channel
 
-**Purpose:** control each heater independently while measuring its electrical input.
+A separate switch and current measurement let each pixel heat and stop independently, even while other pixels remain active.
 
 1. Connect supply positive → heater → **0.100 Ω shunt → AO3400A → supply negative**. Place the shunt and switch on the electronics board.
 2. Run two short, separate traces from the shunt pads to INA190A2 inputs. Its gain of 50 gives a nominal current sensitivity of **5 V/A**.
@@ -26,7 +26,7 @@ For each group of eight pixels, provide **25 functional conductors:** one common
 
 ## 2. Supply concurrent pulses
 
-**Purpose:** maintain the selected heater voltage when several pixels turn on together.
+Concurrent pulses draw their combined current from the supply; this check preserves the intended heating rate when several pixels turn on together.
 
 A 12.5 Ω heater at 2.8 W requires
 
@@ -44,7 +44,7 @@ Eight such heaters use approximately **3.8 A**; 32 use approximately **15 A and 
 
 ## 3. Calibrate current and voltage
 
-**Purpose:** calculate actual heater resistance rather than the resistance of the complete power path.
+Temperature estimation needs the wire’s resistance, so calibration removes sensing errors and the separate sense leads exclude cable and switch losses.
 
 1. For each channel, measure two positive reference currents with the ammeter in the **shunt/MOSFET branch**. Record ADC codes $`n_1,n_2`$ and reference currents $`x_1,x_2`$.
 2. Calculate $`a=(x_2-x_1)/(n_2-n_1)`$, $`b_0=x_1-an_1`$; convert subsequent codes using $`x=an+b_0`$. Check a third current and repeat after warming the board.
@@ -68,7 +68,7 @@ Pulse the resistor loads using the final cable and scan order. Record selection-
 
 ## 4. Apply the single-channel controller
 
-**Purpose:** repeat one calculation without coupling the pixels’ power commands.
+Every pixel retains its own temperature history, so an earlier pulse shortens its remaining heating allowance without changing other pixels’ commands.
 
 Use Temperature control separately for each channel. Store each pixel’s electrical calibration and resistance $`R_0`$ at ambient temperature $`A`$; load the same-batch curve from the wire-temperature fixture, rescaled so $`q(A)=1`$. Each channel retains its own heater temperature $`T`$ and surroundings temperature $`S`$.
 
@@ -84,7 +84,7 @@ The board timer serves the earliest active deadline. A measurement fault stops t
 
 ## 5. Check the assembled pixels
 
-**Purpose:** verify both the measurement and the resulting tactile output under the intended conditions.
+Pixel assembly, neighboring heaters and mechanical contact change heat loss; the operating checks establish where the fitted model produces repeatable tactile output.
 
 1. Check array continuity and connector orientation before installing the wire. Keep the common heater feed isolated from any conflicting ground connection.
 2. Record each assembled pixel’s ambient resistance. Compare it with its wire length and with other pixels of the same geometry; inspect unusually large differences.
@@ -93,6 +93,8 @@ The board timer serves the earliest active deadline. A measurement fault stops t
 5. Measure displacement or force as well as resistance. Record the pulse amplitude, repetition rate and load condition associated with repeatable useful output. Resistance residuals test electrical/model consistency; a temperature-error claim additionally requires an independent temperature reference that resolves the transient.
 
 ## Appendix A. Parts
+
+Each pixel gets its own current and switch components; eight pixels share the voltage-measurement components.
 
 | Per pixel | Selection |
 |---|---|
@@ -117,6 +119,8 @@ The board timer serves the earliest active deadline. A measurement fault stops t
 Provide a physical supply disconnect, supply protection and connectors rated for concurrent current. Place shunts/amplifiers away from switch heating; route power current separately from measurement ground.
 
 ## Appendix B. Connections
+
+The following connections select one pixel’s voltage while leaving all eight power switches independently controlled.
 
 **INA190A2 DCK:** pin 1 REF, 2 GND, 3 VS, 4 IN+, 5 IN−, 6 OUT.
 

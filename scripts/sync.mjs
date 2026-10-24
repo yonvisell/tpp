@@ -19,7 +19,7 @@ async function sanitize(raw, origin) {
     const filename = path.basename(target);
     if (!/\.(png|jpe?g|svg|webp)$/i.test(filename)) throw new Error(`Unsupported image: ${filename}`);
     const source = path.isAbsolute(target) ? target : path.resolve(path.dirname(origin), target);
-    const allowed = ['TactileTeleopMVPRev06/images','TactileTeleopMVPRev08/images','TactileTeleopControllerRev08/images'].map(p=>path.resolve(sourceRoot,p));
+    const allowed = ['TactileTeleopMVPRev06/images','TactileTeleopMVPRev08/images','TactileTeleopControllerRev08/images','TPP-Control-Simulation/images'].map(p=>path.resolve(sourceRoot,p));
     if (!allowed.some(dir=>path.resolve(source).startsWith(dir + path.sep))) throw new Error(`Image outside selected circuit assets: ${filename}`);
     await fs.copyFile(source, path.join(figureDir, filename));
     const companion = source.replace(/\.(png|jpe?g|webp)$/i,'.svg');
@@ -45,6 +45,12 @@ for(const page of pages){
  await fs.writeFile(path.join(contentDir,`${page.id}.md`),sanitized);
 }
 const latexIndex=process.argv.indexOf('--latex');
+const simulationArchive=path.join(sourceRoot,'TPP-Control-Simulation/simulation-files.zip');
+if(pages.some(p=>p.id==='simulation')){
+ if(!await exists(simulationArchive))throw new Error('Missing selected simulation source/data archive.');
+ await fs.mkdir(path.join(contentDir,'simulation'),{recursive:true});
+ await fs.copyFile(simulationArchive,path.join(contentDir,'simulation/simulation-files.zip'));
+}
 if(latexIndex>=0){
  const relative=process.argv[latexIndex+1];
  if(!relative||path.isAbsolute(relative)||!relative.endsWith('.tex'))throw new Error('LaTeX input must be a selected relative .tex path inside the source root.');

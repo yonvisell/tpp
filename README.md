@@ -12,6 +12,7 @@ The controller estimates metal temperature from electrical power and heat loss, 
 - [Foil pixel](content/macro.md): single-pixel circuit, measurements and operation.
 - [Wire array](content/wire-array.md): repeated drive channels and shared measurement electronics.
 - [Wire calibration](content/wire-temperature.md): resistance–temperature measurements using a long, same-stock wire.
+- [Pulse simulations](content/simulation.md): pulse trains, individual-pulse detail and modest model mismatch, with downloadable code and data.
 - [Controller LaTeX](content/latex/main.tex).
 
 These are proposed circuit and controller designs. Bench measurements establish the temperature accuracy and usable operating range.

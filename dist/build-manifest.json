@@ -1,44 +1,51 @@
 {
-  "generatedAt": "2026-10-24T00:31:58.300Z",
+  "generatedAt": "2026-10-24T00:42:22.736Z",
   "documents": [
     {
       "id": "controller",
       "title": "Temperature-limited heating pulses",
       "sourceFile": "TactileTeleopControllerRev08.md",
-      "sha256": "0186e001781cdda55778a4e8968f57f3bdfd43897237dfc83b89d546052e7ba2",
+      "sha256": "ccf9ea4c52de7ae96734019715d19a1cfeef321dccd9ec6179c83e55bcddd25d",
       "sections": 9
     },
     {
       "id": "macro",
       "title": "Foil pixel: circuit and calibration",
       "sourceFile": "MacroTPP-MVP.md",
-      "sha256": "24f00c26ca3587cdd19729893f05b5679b56a3f6cbe6306dda1b9d1d0fcb2abc",
+      "sha256": "13a012b7eb40994b8a1f5657017e4d1b71ae1ec0f1f535a3acd4a7f64219b547",
       "sections": 5
     },
     {
       "id": "wire-array",
       "title": "Wire array: circuit and calibration",
       "sourceFile": "WireArray-MVP.md",
-      "sha256": "0a8bbcd83d0a2f23489ac79cc6f5a934ff822e687adf5a94af38edd9b623a751",
+      "sha256": "a55fc1ebb960229d456bd8b5f13437ac8bedc2ae3240af29dbbed3670e28b2f3",
       "sections": 7
     },
     {
       "id": "wire-temperature",
       "title": "Wire-temperature reference",
       "sourceFile": "WireTemperature-Calibration.md",
-      "sha256": "9feb8134e045c2eeb1d607aa1f625e858f4256fb393bbe5ef8af65e4520da153",
+      "sha256": "f9d1c4ba27eaac0f158ab5d1b2cbc76b10344c3afb40ca45c3cffb0c5e436e10",
+      "sections": 5
+    },
+    {
+      "id": "simulation",
+      "title": "Temperature-limited pulse examples",
+      "sourceFile": "TPP-Control-Simulation.md",
+      "sha256": "4c59595db44e4aa8a8450f1ed9af412d890e0cc2b714f1c91805021d528bf701",
       "sections": 5
     },
     {
       "id": "student-mvp",
       "title": "Student prototype: one temperature-limited foil pixel*",
       "sourceFile": "TPP-Student-MVP.md",
-      "sha256": "e74c4d2d61bfaa35a741d4e541ecb4ea42cdba032f5369a7f7e567a906bd4e7c",
+      "sha256": "66d9e033259c63cb6e7852408a3816c36a4906fb1bd637c0946ead132350de09",
       "sections": 6
     }
   ],
   "math": {
     "block": 15,
-    "inline": 208
+    "inline": 224
   }
 }
