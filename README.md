@@ -1,58 +1,41 @@
-# Thermopneumatic pixel drive
+# TPP control
 
-Technical documentation for foil and wire thermopneumatic pixels: circuit designs, electrical measurement, resistance–temperature calibration and a local pulse controller.
+Temperature control, circuits and calibration for thermopneumatic tactile pixels.
 
-[Documentation website](https://tactile-pixel-temperature-control.candidamber16.chatgpt.site) · [Source archive](https://github.com/yonvisell/tpp-temperature-control)
+The controller estimates metal temperature from electrical power and heat loss, then corrects that estimate using the measured resistance–temperature relation. It controls one pixel by ending each pulse at a temperature or duration limit.
 
-## Documents
+[Read the documentation](https://yonvisell.github.io/tpp/)
 
-- [Temperature controller](content/controller.md)
-- [Foil macro pixel](content/macro.md)
-- [Wire pixel array](content/wire-array.md)
-- [Wire temperature calibration](content/wire-temperature.md)
+## 1. Documents
 
-The generated website has document and section navigation, expandable circuit figures, print layouts and downloadable Markdown. Equations render at build time. KaTeX styles and fonts are included locally, so reading the site requires no external services.
+- [Temperature control](content/controller.md): the physical model, resistance correction and calculations performed each clock cycle.
+- [Foil pixel](content/macro.md): single-pixel circuit, measurements and operation.
+- [Wire array](content/wire-array.md): repeated drive channels and shared measurement electronics.
+- [Wire calibration](content/wire-temperature.md): resistance–temperature measurements using a long, same-stock wire.
+- [Controller LaTeX](content/latex/main.tex).
 
-## Build
+These are proposed circuit and controller designs. Bench measurements establish the temperature accuracy and usable operating range.
 
-Use Node 24 or later:
+## 2. Build and preview
 
-```sh
-npm ci --ignore-scripts
-node scripts/build.mjs
-node scripts/check.mjs
-```
+The repository includes source documents, editable diagrams and the generated website in `dist/`.
 
-The build reads only `content/`, `src/` and installed dependencies. It produces the complete static site in `dist/`. All page and asset links are relative, supporting a domain root, a GitHub Pages repository path or an offline archive.
+1. Use Node 24 or later.
+2. Install the pinned dependencies: `npm ci --ignore-scripts`.
+3. Build the pages: `node scripts/build.mjs`.
+4. Check equations, algorithms and local links: `node scripts/check.mjs`.
+5. Preview: `node scripts/serve.mjs --port 4178`.
 
-To preview:
+GitHub Pages serves the generated files from the `gh-pages` branch. All page and asset paths are relative.
 
-```sh
-node scripts/serve.mjs --port 4178
-```
+## 3. Update the source documents
 
-Open the printed local URL. Deploy the contents of `dist/` using the selected static-hosting service.
+1. Update the selected documents listed in `src/documents.mjs`.
+2. Import them: `node scripts/sync.mjs --source-root /path/to/document-workspace --latex TactileTeleopControllerRev08/latex/main.tex`.
+3. Run the build and checks above.
 
-## Update selected source documents
+The import copies only the listed documents and their figures. Mathematical expressions and pseudocode calculations are checked against their rendered output.
 
-Import revised documents explicitly before building:
+---
 
-```sh
-node scripts/sync.mjs --source-root /path/to/document-workspace
-node scripts/build.mjs
-node scripts/check.mjs
-```
-
-To include a selected LaTeX source in the repository and website downloads:
-
-```sh
-node scripts/sync.mjs --source-root /path/to/document-workspace --latex relative-file.tex
-```
-
-The import list is `src/documents.mjs`. Synchronization copies selected images and matching editable SVGs, removes inline document links, rewrites image paths and checks for private paths and email addresses. It does not scan or copy research PDFs. The normal build never reads the external workspace.
-
-## Rendering and checks
-
-Pseudocode fences render as proportional-font procedure lists, retaining indentation as list hierarchy and preserving literal operators. Repository Markdown protects inline TeX with dollar/backtick delimiters and display TeX with `math` fences. Images use relative paths. Synchronization converts the original math delimiters outside code fences and verifies every equation payload. KaTeX errors fail the build rather than appearing silently on the page.
-
-`node scripts/check.mjs` checks local resources, heading anchors, equation output, downloads and private-path leakage. Browser inspection remains useful for layout and interactions. The vendored KaTeX license is included with its styles and fonts.
+* [Student MVP](content/student-mvp.md) — separate implementation draft; not yet reviewed by Yon Visell.

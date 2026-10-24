@@ -18,6 +18,7 @@ await fs.mkdir(figureDir, {recursive:true});
 await fs.rm(dist, {recursive:true, force:true});
 await fs.mkdir(path.join(dist,'assets/figures'), {recursive:true});
 await fs.mkdir(path.join(dist,'downloads'), {recursive:true});
+await fs.writeFile(path.join(dist,'.nojekyll'),'');
 
 const mathCounts = {block:0, inline:0};
 const md = new MarkdownIt({html:false, linkify:false, typographer:false});
@@ -53,7 +54,7 @@ md.block.ruler.before('fence','block_math',(state,startLine,endLine,silent) => {
   state.line=line+1;
   return true;
 },{alt:['paragraph','reference','blockquote','list']});
-const renderMath = (tex, displayMode) => katex.renderToString(tex,{displayMode,throwOnError:true,output:'htmlAndMathml',trust:false,strict: code => code === 'unicodeTextInMathMode' ? 'ignore' : 'error'});
+const renderMath = (tex, displayMode) => katex.renderToString(`\\mathsf{${tex}}`,{displayMode,throwOnError:true,output:'htmlAndMathml',trust:false,strict: code => code === 'unicodeTextInMathMode' ? 'ignore' : 'error'});
 md.renderer.rules.inline_math = (tokens,i) => { mathCounts.inline++; return renderMath(tokens[i].content,false); };
 md.renderer.rules.block_math = (tokens,i) => { mathCounts.block++; return `<div class="math-block">${renderMath(tokens[i].content,true)}</div>\n`; };
 md.renderer.rules.link_open = () => '';
@@ -78,6 +79,7 @@ function renderProcedure(text) {
 md.renderer.rules.fence = (tokens,i) => {
   const token=tokens[i];
   if(token.info.trim()==='math'){mathCounts.block++;return `<div class="math-block">${renderMath(token.content.trim(),true)}</div>\n`;}
+  if(token.info.trim()==='pseudocode')return `<pre class="pseudocode" aria-label="Algorithm"><code>${esc(token.content.trimEnd())}</code></pre>\n`;
   if (/→|─|└|│/.test(token.content) && /MOSFET|Supply|supply|heater|ground/.test(token.content) && !/pseudocode/.test(token.info)) return `<pre class="wiring">${esc(token.content)}</pre>\n`;
   return renderProcedure(token.content);
 };
@@ -97,27 +99,28 @@ function renderDocument(source) {
   return {title,html:md.renderer.render(tokens,md.options,{}),headings};
 }
 function navigation(active) {
-  return `<nav class="site-nav" id="document-navigation" aria-label="Documents"><p class="nav-label">Documentation</p><a href="index.html"${active==='home'?' aria-current="page"':''}>Overview</a>${pages.map(p=>`<a href="${p.id}.html"${active===p.id?' aria-current="page"':''}>${esc(p.label)}</a>`).join('')}<div class="nav-divider"></div><a href="downloads/all-documents.md" download>Download all notes ↓</a></nav>`;
+  return `<nav class="site-nav" id="document-navigation" aria-label="Documents"><p class="nav-label">Documents</p><a href="index.html"${active==='home'?' aria-current="page"':''}>Overview</a>${pages.filter(p=>!p.unreviewed).map(p=>`<a href="${p.id}.html"${active===p.id?' aria-current="page"':''}>${esc(p.label)}</a>`).join('')}<div class="nav-divider"></div><a href="downloads/all-documents.md" download>Download notes ↓</a><div class="unreviewed-nav">${pages.filter(p=>p.unreviewed).map(p=>`<a href="${p.id}.html"${active===p.id?' aria-current="page"':''}>* ${esc(p.label)}</a>`).join('')}<p>Not yet reviewed by Yon Visell</p></div></nav>`;
 }
 function pageTemplate(page, data, body, home=false) {
-  const idx=pages.findIndex(p=>p.id===page.id), prev=pages[idx-1], next=pages[idx+1];
+  const sequence=pages.filter(p=>!p.unreviewed), idx=sequence.findIndex(p=>p.id===page.id), prev=sequence[idx-1], next=idx>=0?sequence[idx+1]:null;
   const toc=data.headings?.length?`<aside class="toc" aria-label="On this page"><p class="toc-label">On this page</p>${data.headings.map(h=>`<a href="#${h.id}"${h.level==='h3'?' class="toc-sub"':''}>${esc(h.label)}</a>`).join('')}</aside>`:'<aside></aside>';
   const tools=home?'':`<div class="doc-tools"><a href="downloads/${page.id}.md" download>Download Markdown ↓</a><button class="text-button" type="button" data-print>Print / save PDF</button></div>`;
   const footer=home?'':`<nav class="page-footer" aria-label="Adjacent documents"><div>${prev?`<span>Previous</span><a href="${prev.id}.html">← ${esc(prev.label)}</a>`:'<span>Documentation</span><a href="index.html">← Overview</a>'}</div><div class="next">${next?`<span>Next</span><a href="${next.id}.html">${esc(next.label)} →</a>`:''}</div></nav>`;
-  return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="${esc(page.description)}"><title>${esc(data.title)} · Thermopneumatic pixel notes</title><link rel="stylesheet" href="assets/katex/katex.min.css"><link rel="stylesheet" href="assets/site.css"><script src="assets/site.js" defer></script></head><body><a class="skip-link" href="#main">Skip to content</a><header class="site-top"><a class="brand" href="index.html">Thermopneumatic pixel drive<small>Circuits · Measurement · Control</small></a><span class="top-note">Engineering documentation</span><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="document-navigation">Contents</button></header><div class="layout">${navigation(page.id)}<main class="document" id="main"><header class="doc-header"><p class="eyebrow">${esc(page.section || 'Technical notes')}</p><h1>${esc(data.title)}</h1>${tools}</header>${body}${footer}</main>${toc}</div><footer class="site-footer"><span>Thermopneumatic pixel drive</span><span>Circuits, calibration and local temperature control</span></footer><dialog class="image-dialog" aria-label="Enlarged figure"><div class="dialog-top"><span data-dialog-title>Figure</span><a href="#" data-original target="_blank" rel="noopener">Open original ↗</a><button class="dialog-close" type="button">Close</button></div><div class="dialog-image-wrap"><img alt="Enlarged figure"></div></dialog></body></html>\n`;
+  return `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="${esc(page.description)}"><title>${home?"TPP control":esc(page.label)+" · TPP control"}</title><link rel="stylesheet" href="assets/katex/katex.min.css"><link rel="stylesheet" href="assets/site.css"><script src="assets/site.js" defer></script></head><body><a class="skip-link" href="#main">Skip to content</a><header class="site-top"><a class="brand" href="index.html">TPP control<small>Circuits · Measurement · Control</small></a><span class="top-note">Circuits and control</span><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="document-navigation">Contents</button></header><div class="layout">${navigation(page.id)}<main class="document" id="main"><header class="doc-header"><p class="eyebrow">${esc(page.section || 'Technical notes')}</p><h1>${esc(data.title)}</h1>${tools}</header>${body}${footer}</main>${toc}</div><footer class="site-footer"><span>TPP control</span><span>Circuits, calibration and local temperature control</span></footer><dialog class="image-dialog" aria-label="Enlarged figure"><div class="dialog-top"><span data-dialog-title>Figure</span><a href="#" data-original target="_blank" rel="noopener">Open original ↗</a><button class="dialog-close" type="button">Close</button></div><div class="dialog-image-wrap"><img alt="Enlarged figure"></div></dialog></body></html>\n`;
 }
 const latexDir=path.join(contentDir,'latex');
 const latexDownloads=[];
 if(await exists(latexDir)) {
   for(const name of await fs.readdir(latexDir)) {
-    if(!name.endsWith('.tex')) continue;
+    if(!/\.(tex|zip)$/.test(name)) continue;
     await fs.copyFile(path.join(latexDir,name),path.join(dist,'downloads',name));
     latexDownloads.push(name);
   }
+  if(await exists(path.join(latexDir,'images')))await fs.cp(path.join(latexDir,'images'),path.join(dist,'downloads/images'),{recursive:true});
 }
 
 const manifest=[];
-let allDocuments='# Thermopneumatic pixel drive\n\n';
+let allDocuments='# TPP control\n\n';
 for(const page of pages) {
   const cached=path.join(contentDir,`${page.id}.md`);
   if(!await exists(cached)) throw new Error(`Missing repository content: content/${page.id}.md. Run the explicit sync command first.`);
@@ -130,9 +133,9 @@ for(const page of pages) {
   manifest.push({id:page.id,title:data.title,sourceFile:path.basename(page.source),sha256:createHash('sha256').update(source).digest('hex'),sections:data.headings.length});
 }
 await fs.writeFile(path.join(dist,'downloads/all-documents.md'),allDocuments);
-const home={id:'home',section:'Technical documentation',description:'Circuits, calibration and a local temperature controller for thermopneumatic pixels.'};
-const homeBody=`<p class="lead">Circuit designs, measurement procedures and a local temperature controller for foil and wire thermopneumatic pixels.</p><ol class="doc-list">${pages.map((p,i)=>`<li><span class="number">0${i+1}</span><div><h2><a href="${p.id}.html">${esc(p.label)}</a></h2><p>${esc(p.description)}</p></div></li>`).join('')}</ol><p class="home-note">Status: proposed circuit extensions and control implementation.</p>${latexDownloads.length ? '<p class="home-note">LaTeX source: '+latexDownloads.map(name=>`<a href="downloads/${esc(name)}" download>${esc(name)}</a>`).join(' · ')+'</p>' : ''}`;
-await fs.writeFile(path.join(dist,'index.html'),pageTemplate(home,{title:'Thermopneumatic pixel drive',headings:[]},homeBody,true));
+const home={id:'home',section:'Thermopneumatic pixels',description:'Temperature control, circuits and calibration for thermopneumatic pixels.'};
+const homeBody=`<p class="lead">Temperature control for foil and wire tactile pixels.</p><p class="overview-text">The model uses measured electrical power to predict heating and cooling. Resistance measurements correct the temperature estimate. The controller ends each pulse at the chosen temperature or duration.</p><ol class="doc-list">${pages.filter(p=>!p.unreviewed).map((p,i)=>`<li><span class="number">0${i+1}</span><div><h2><a href="${p.id}.html">${esc(p.label)}</a></h2><p>${esc(p.description)}</p></div></li>`).join('')}</ol>${latexDownloads.length ? '<p class="home-note">Controller source: '+latexDownloads.map(name=>`<a href="downloads/${esc(name)}" download>${name.endsWith(".zip")?"LaTeX project ZIP ↓":"TeX source ↓"}</a>`).join(' · ')+'</p>' : ''}<div class="unreviewed-note">${pages.filter(p=>p.unreviewed).map(p=>`<p><a href="${p.id}.html">* ${esc(p.label)}</a> — ${esc(p.description)}</p>`).join('')}<p>Not yet reviewed by Yon Visell.</p></div>`;
+await fs.writeFile(path.join(dist,'index.html'),pageTemplate(home,{title:'TPP control',headings:[]},homeBody,true));
 for(const name of await fs.readdir(figureDir)) if(/\.(png|jpe?g|svg|webp)$/i.test(name)) await fs.copyFile(path.join(figureDir,name),path.join(dist,'assets/figures',name));
 for(const name of ['site.css','site.js']) await fs.copyFile(path.join(site,'src',name),path.join(dist,'assets',name));
 const katexRoot=path.join(site,'node_modules/katex');

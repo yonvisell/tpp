@@ -37,7 +37,7 @@ for(const name of await fs.readdir(content)){
  const normalizeIndent=text=>text.split('\n').map(line=>line.trimStart()).join('\n').trim();
  const expectedMath=mathSource(source).expressions.map(x=>normalizeIndent(x.tex));
  const decode=text=>text.replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g,x=>({'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&#39;':"'"}[x]));
- const renderedMath=[...html.matchAll(/<annotation encoding="application\/x-tex">([\s\S]*?)<\/annotation>/g)].map(m=>normalizeIndent(decode(m[1])));
+ const renderedMath=[...html.matchAll(/<annotation encoding="application\/x-tex">([\s\S]*?)<\/annotation>/g)].map(m=>normalizeIndent(decode(m[1]).replace(/^\\mathsf\{([\s\S]*)\}$/,'$1')));
  if(JSON.stringify(expectedMath)!==JSON.stringify(renderedMath))errors.push(`Equation payload/order changed in HTML: ${name}`);
  let fence=null,procedure=false;
  for(const line of source.split('\n')){
@@ -47,7 +47,7 @@ for(const name of await fs.readdir(content)){
    else if(marker[1][0]===fence.char&&marker[1].length>=fence.length){fence=null;procedure=false;}
    continue;
   }
-  if(fence){if(procedure&&line.trim()&&!html.includes(`<span>${esc(line.trim())}</span>`))errors.push(`Pseudocode text changed: ${name}: ${line.trim()}`);continue;}
+  if(fence){if(procedure&&line.trim()&&!html.includes(esc(line)))errors.push(`Pseudocode text changed: ${name}: ${line.trim()}`);continue;}
   if(/\\[\[\]()]|\$\$/.test(line))errors.push(`Unprotected GitHub math delimiter: ${name}`);
   if(/\$(?!`)|(?<!`)\$/.test(line.replace(/\$`[^`]*`\$/g,'')))errors.push(`Unprotected inline dollar: ${name}`);
  }

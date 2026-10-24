@@ -19,8 +19,8 @@ async function sanitize(raw, origin) {
     const filename = path.basename(target);
     if (!/\.(png|jpe?g|svg|webp)$/i.test(filename)) throw new Error(`Unsupported image: ${filename}`);
     const source = path.isAbsolute(target) ? target : path.resolve(path.dirname(origin), target);
-    const allowed = path.join(sourceRoot,'TactileTeleopMVPRev06/images');
-    if (!path.resolve(source).startsWith(path.resolve(allowed) + path.sep)) throw new Error(`Image outside selected circuit assets: ${filename}`);
+    const allowed = ['TactileTeleopMVPRev06/images','TactileTeleopMVPRev08/images','TactileTeleopControllerRev08/images'].map(p=>path.resolve(sourceRoot,p));
+    if (!allowed.some(dir=>path.resolve(source).startsWith(dir + path.sep))) throw new Error(`Image outside selected circuit assets: ${filename}`);
     await fs.copyFile(source, path.join(figureDir, filename));
     const companion = source.replace(/\.(png|jpe?g|webp)$/i,'.svg');
     if (companion !== source && await exists(companion)) await fs.copyFile(companion,path.join(figureDir,path.basename(companion)));
@@ -54,6 +54,10 @@ if(latexIndex>=0){
  if(/\/Users\/|\/home\/|\.chatgpt-projects|mailto:|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(text))throw new Error('Private path or email in selected LaTeX source.');
  await fs.mkdir(path.join(contentDir,'latex'),{recursive:true});
  await fs.writeFile(path.join(contentDir,'latex',path.basename(source)),text);
+ const images=path.join(path.dirname(source),'images');
+ if(await exists(images))await fs.cp(images,path.join(contentDir,'latex/images'),{recursive:true});
+ const archive=path.join(path.dirname(source),'controller-latex.zip');
+ if(await exists(archive))await fs.copyFile(archive,path.join(contentDir,'latex/controller-latex.zip'));
 }
 console.log(`Synchronized ${pages.length} selected documents and their circuit figures into repository content.`);
 console.log(`Verified all equation payloads: ${mathCounts.block} display, ${mathCounts.inline} inline.`);

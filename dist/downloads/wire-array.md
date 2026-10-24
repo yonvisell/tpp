@@ -1,166 +1,134 @@
-# Wire TPP array — circuit and temperature control
+# Wire array: circuit and calibration
 
-- Build **32 channels as four identical eight-pixel boards**, each controlled by one Teensy 4.1.
-- Give every heater an independent switch and current sensor; share voltage measurement across each board.
-- Keep the tactile array passive, with the electronics **at least 10 cm away** and separate voltage-sense connections at the heater pads.
-- Use one batch resistance–temperature calibration, each pixel's room-temperature resistance, and local pulse deadlines.
+- **Repeat one independently controlled heater channel eight times per board.** Four identical boards serve 32 pixels. Every pixel has its own MOSFET, shunt and current amplifier.
+- **Share voltage measurement within each board.** Two selectors connect the chosen pixel’s terminal-sense wires to one difference amplifier. The other pixels can continue heating during that measurement.
+- **Keep the tactile array passive.** Place sensing and switching electronics in the housing, at least 10 cm from the pixels; run separate power and voltage-sense conductors to the heater pads.
+- **Use the same temperature-estimation calculation for every pixel.** Each channel supplies measured voltage/current and its own room-temperature resistance. Pixels from one wire batch share the calibrated material curve.
+- **Complete one eight-channel board first.** Its concurrent-load measurements establish supply droop, sensing error and delay to switch-off before the design is duplicated.
 
-## 1. Circuit
+![One wire-heater channel](../assets/figures/array-channel-circuit.png)
 
-**Goal:** measure each heater's electrical resistance while controlling its heating pulses independently.
+![Shared voltage measurement for eight channels](../assets/figures/array-shared-circuit.png)
 
-![One heater channel, repeated eight times per board](../assets/figures/array-channel-circuit.png)
+## 1. Build the repeated channel
 
-![Shared voltage measurement and Teensy connections](../assets/figures/array-shared-circuit.png)
+**Purpose:** control each heater independently while measuring its electrical input.
 
-*Electrical schematic in two sheets; component placement and PCB routing are separate layout steps.*
+1. Connect supply positive → heater → **0.100 Ω shunt → AO3400A → supply negative**. Place the shunt and switch on the electronics board.
+2. Run two short, separate traces from the shunt pads to INA190A2 inputs. Its gain of 50 gives a nominal current sensitivity of **5 V/A**.
+3. Connect each heater terminal to a 3 kΩ/1 kΩ divider. Connect the divider midpoints through the TMUX1108 pair to the shared AD8276, as shown above.
 
-Each channel uses an **AO3400A**, **0.100 Ω shunt** and **INA190A2**. Two selectors and one **AD8276** measure the voltage across the selected heater. The other heaters continue operating during selection. Separate sense connections exclude power-cable and contact voltage drops from heater-voltage measurement.
+At 0.47 A, the current output is approximately **2.35 V** and the shunt dissipates **22 mW**. Set the initial total heater-current ceiling to **0.55 A**, including sensing-network current that bypasses the shunt.
 
-At **0.47 A through the shunt**, the current amplifier outputs **2.35 V** and the shunt dissipates **22 mW**. Set the initial heater-current ceiling to **0.55 A**, including current that bypasses the shunt through the voltage-sensing network.
+The selectors choose both terminals of the same pixel; the AD8276 subtracts them. The rail remains below 10 V and the analog circuitry uses 3.3 V.
 
-## 2. Power and local control
+For each group of eight pixels, provide **25 functional conductors:** one common positive feed, eight individual returns and sixteen voltage-sense connections. Begin the sense connections at the heater pads. Rate the common feed and connector for at least the intended 4.4 A eight-channel ceiling.
 
-**Goal:** supply concurrent pixels and stop each pulse from its local temperature estimate.
+## 2. Supply concurrent pulses
 
-A **12.5 Ω heater at 2.8 W** draws approximately **0.47 A at 5.9 V**. Eight simultaneous heaters draw about **3.8 A**; 32 require about **15 A and 90 W instantaneous heater power**. At 20% duty, mean heater power is approximately **18 W**. Set the rail above the required heater voltage by the measured cable, shunt and switch drops, within the circuit's voltage range. Size the supply for concurrent loads or limit simultaneous heating.
+**Purpose:** maintain the selected heater voltage when several pixels turn on together.
 
-The PC loads calibration and run settings, then collects logs. Each Teensy scans its eight channels and enforces pulse deadlines locally. A wired start signal can coordinate boards. Measure the complete delay from sampling through computation to switch turn-off and include it in the deadline calculation.
-
-The thermal model tracks heater temperature $`T`$ and surrounding-material temperature $`S`$:
-
-```math
-C(T)\dot T=P-G(T-S),\qquad
-\dot S=\beta(T-S)-\gamma(S-T_a).
-```
-
-Here $`P`$ is heater power, $`C`$ its heat capacity, $`T_a`$ ambient temperature, and $`G,\beta,\gamma`$ fitted heat-transfer coefficients. Retain both states between pulses. Resistance measurements narrow predicted temperature ranges using the batch calibration; retain all compatible branches when the curve is nonmonotonic. Set the next cutoff from the highest remaining heater or surrounding temperature, the minimum heat capacity and maximum possible heater power.
-
-## 3. Measurement and calibration
-
-**Goal:** obtain heater resistance with explicit electrical uncertainty.
-
-Calibrate each current path at two positive currents, measuring the reference current in the **shunt/MOSFET branch**, and check an intermediate value. Fit $`I_s=a_I n_I+c_I`$, where $`n_I`$ is the ADC reading. Calibrate the complete voltage path similarly as $`V_h=a_V n_V+c_V`$, including dividers, selectors and AD8276 loading. Check error over the installed common-mode voltage and concurrent-load range.
-
-Heater current includes sensing-network current that bypasses the shunt:
+A 12.5 Ω heater at 2.8 W requires
 
 ```math
-I_h\in[I_s^-+b^-,\ I_s^++b^+],\qquad
-R_h\in\left[\frac{V_h^-}{I_h^+},\frac{V_h^+}{I_h^-}\right],\quad I_h^->0.
+I=\sqrt{2.8/12.5}\approx0.47\ {\rm A},\qquad V=IR\approx5.9\ {\rm V}.
 ```
 
-The interval $`[b^-,b^+]`$ bounds this additional, signed current. With only the 3 kΩ/1 kΩ return divider connected, it is approximately $`V_-/4000`$, where $`V_-`$ is the heater's negative-terminal voltage. The selected AD8276 path adds loading. During the resistor-load checkout, compare a reference measurement in the **heater lead, before the sensing branch**, with calibrated shunt current; retain a range covering selector states, concurrent loads, circuit warming and reference-meter error. Include residual settling error in the voltage and current intervals.
+Eight such heaters use approximately **3.8 A**; 32 use approximately **15 A and 90 W of instantaneous heater power**. At 20% duty, mean heater power is approximately 18 W. The supply and conductors must support the concurrent current even when average power is much lower.
 
-Use settled ON readings for resistance. During switching and OFF periods, propagate the thermal states with the corresponding power bounds. Preserve sample timestamps; stop heating on stale data, a missed acquisition deadline, or disagreement between settled measurements and the calibrated electrical range.
+1. Connect eight stable 12–13 Ω resistor loads rated for the calibration power.
+2. Increase the rail while measuring voltage at each load’s sense terminals. Record rail voltage, heater voltage and current with one, several and all eight loads on.
+3. Select a rail setting that supplies the intended heater voltage without exceeding any channel’s current ceiling.
+4. Repeat with the intended pulse pattern. Record the minimum/maximum rail voltage and the largest measurement error after simultaneous switching.
+5. Use those extrema in the controller configuration. A pulse request exceeding the checked concurrent-load condition must reduce concurrency or drive amplitude.
 
-## Appendix A — bill of materials
+## 3. Calibrate current and voltage
 
-### Per-pixel parts
+**Purpose:** calculate actual heater resistance rather than the resistance of the complete power path.
 
-| Item | Selected part/configuration |
+1. For each channel, measure two positive reference currents with the ammeter in the **shunt/MOSFET branch**. Record ADC codes $`n_1,n_2`$ and reference currents $`x_1,x_2`$.
+2. Calculate $`a=(x_2-x_1)/(n_2-n_1)`$, $`b_0=x_1-an_1`$; convert subsequent codes using $`x=an+b_0`$. Check a third current and repeat after warming the board.
+3. Apply two measured differential voltages through the actual sense connections and selected front end. Calculate voltage gain and offset with the same formula. Check a third value, the installed terminal common-mode voltage, and changes caused by neighboring channels.
+
+The heater current is
+
+```math
+I=I_s+b,\qquad R=V/I,\qquad P=VI.
+```
+
+Here $`b`$ is **signed net sensing-network current bypassing the shunt**. The bare negative-terminal divider contributes approximately $`V_-/4000`$; loading by the connected difference amplifier can change its magnitude and sign.
+
+1. Measure total current in the **heater lead before the sensing branch**.
+2. Subtract the calibrated shunt-branch current to obtain $`b`$.
+3. Repeat with each selector position, intended neighboring loads and a warm board.
+4. Store a correction and an error range covering those readings and reference-meter uncertainty. If the difference is below the meter’s resolution, include that resolution in the error range.
+5. Measure off-current in the heater lead and store its upper bound.
+
+Pulse the resistor loads using the final cable and scan order. Record selection-to-settled-reading time, relative voltage/current delay, and measurement-to-current-off delay. Use only settled conducting readings for $`V/I`$.
+
+## 4. Apply the single-channel controller
+
+**Purpose:** repeat one calculation without coupling the pixels’ power commands.
+
+Use Temperature control separately for each channel. Store each pixel’s electrical calibration and resistance $`R_0`$ at ambient temperature $`A`$; load the same-batch curve from the wire-temperature fixture, rescaled so $`q(A)=1`$. Each channel retains its own heater temperature $`T`$ and surroundings temperature $`S`$.
+
+For each active channel:
+
+1. Select its two voltage terminals and wait the measured settling time.
+2. Read its current and selected voltage; align their timestamps and calculate corrected $`I,V,R,P`$.
+3. Predict that channel’s $`T,S`$, then score the 1 °C temperature-table entries against the prediction and measured $`R/R_0`$. Stop on mismatch or separated compatible groups. For one group, select the lowest-cost candidate, also scoring the continuous prediction to preserve changes smaller than a grid step.
+4. End its fixed-amplitude pulse when $`\max(T,S)+M`$ reaches the requested temperature ceiling. Update its timer deadline for the remaining temperature allowance, maximum duration and measurement expiry.
+5. Retain its thermal state after switch-off. Record channel, timestamp, measurements and stopping reason.
+
+The board timer serves the earliest active deadline. A measurement fault stops the affected operation and blocks further requests until corrected. The PC sends settings and finite sequences; local timing remains independent of PC communication. Until a resolved independent temperature reference checks $`M`$, it is an engineering stopping allowance rather than a measured temperature-error limit.
+
+## 5. Check the assembled pixels
+
+**Purpose:** verify both the measurement and the resulting tactile output under the intended conditions.
+
+1. Check array continuity and connector orientation before installing the wire. Keep the common heater feed isolated from any conflicting ground connection.
+2. Record each assembled pixel’s ambient resistance. Compare it with its wire length and with other pixels of the same geometry; inspect unusually large differences.
+3. Run the fitting sequence on a representative pixel. Give **every finished pixel** the separate fixed-model operating check; refit only pixels for which that check fails.
+4. Repeat the operating check with intended neighboring-pixel activity and mechanical contact.
+5. Measure displacement or force as well as resistance. Record the pulse amplitude, repetition rate and load condition associated with repeatable useful output. Resistance residuals test electrical/model consistency; a temperature-error claim additionally requires an independent temperature reference that resolves the transient.
+
+## Appendix A. Parts
+
+| Per pixel | Selection |
 |---|---|
-| Current amplifier | **INA190A2DCKR**, SC70-6, gain 50, 3.3 V, REF grounded |
-| Shunt | **Vishay WSLP0805R1000FEA**, 0.100 Ω, 1%, 0.5 W; calibrate installed value |
-| Heater MOSFET | **AO3400A** |
-| Gate components | **1 kΩ** series; **100 kΩ** gate-to-source |
-| Voltage scaling | Two **3.00 kΩ/1.00 kΩ** divider pairs, 0.1%, preferably ≤25 ppm/K; heater rail below 10 V |
-| Filtering | **1 nF** per divider midpoint; current output **100 Ω/1 nF** |
-| Supply bypass | **100 nF** at the current amplifier |
+| Current amplifier | INA190A2DCKR, SC70-6; 3.3 V; REF grounded |
+| Shunt | Vishay WSLP0805R1000FEA, 0.100 Ω, 1%, 0.5 W |
+| Switch | AO3400A |
+| Gate components | 1 kΩ series; 100 kΩ gate-to-source |
+| Terminal dividers | Two 3.00 kΩ/1.00 kΩ pairs, 0.1%, low temperature coefficient |
+| Filters | 1 nF per divider; current output 100 Ω/1 nF |
+| Supply bypass | 100 nF at current amplifier |
 
-### Complete system
+| Per eight-channel board | Quantity |
+|---|---:|
+| Teensy 4.1 | 1 |
+| Pixel circuits above | 8 |
+| TMUX1108PWR | 2 |
+| AD8276BRZ | 1 |
+| Shared-voltage output filter | 100 Ω/100 pF |
+| Shared-IC supply bypasses | Three 100 nF capacitors |
+| Shared selector-enable pull-down | 10 kΩ |
 
-| Part/function | Eight-pixel board | 32-pixel system |
-|---|---:|---:|
-| Teensy 4.1 | 1 | 4 |
-| INA190A2DCKR | 8 | 32 |
-| 0.100 Ω WSLP0805 shunt | 8 | 32 |
-| AO3400A + gate resistor + pull-down | 8 sets | 32 sets |
-| TMUX1108PWR | 2 | 8 |
-| AD8276BRZ | 1 | 4 |
-| 3.00 kΩ/1.00 kΩ divider pairs | 16 pairs | 64 pairs |
-| Divider 1 nF capacitors | 16 | 64 |
-| Current-output 100 Ω/1 nF filters | 8 | 32 |
-| Voltage-output 100 Ω/100 pF filter | 1 | 4 |
-| Analog-IC 100 nF bypass capacitors | 11 | 44 |
-| Selector-enable 10 kΩ pull-down | 1 | 4 |
+Provide a physical supply disconnect, supply protection and connectors rated for concurrent current. Place shunts/amplifiers away from switch heating; route power current separately from measurement ground.
 
-Provide supply protection, a physical supply disconnect, USB connections and power connectors rated for concurrent loads. Join Teensy ground to supply negative; route heater current separately from measurement ground. Keep analog circuits powered whenever the heater rail is enabled. Size bulk capacitance from measured pulse-induced rail droop.
+## Appendix B. Connections
 
-## Appendix B — connections and pin map
+**INA190A2 DCK:** pin 1 REF, 2 GND, 3 VS, 4 IN+, 5 IN−, 6 OUT.
 
-### One channel, repeated eight times
+Both TMUX1108 selectors use 3.3 V, common address/enable lines, and grounded VSS/GND. Enable HIGH connects the selected inputs; LOW disconnects them.
 
-```text
-Common supply+ → power lead → heater i → individual return → 0.100 Ω → AO3400A drain
-                                                                        source → ground
-                                             INA190 IN+ ─┘       └─ IN−
-                                             INA190 OUT → Teensy current input i
+**AD8276BRZ:** selected positive divider to pin 3; negative divider to pin 2; pin 7 to 3.3 V; pin 4 and REF pin 1 to ground; SENSE pin 5 to OUT pin 6. OUT feeds 100 Ω with 100 pF at the ADC. Check the selected voltage path over approximately 0.20–2.50 V output and its recovery from zero-output saturation.
 
-Heater i sense+ → terminal divider → positive-voltage selector input i
-Heater i sense− → terminal divider → negative-voltage selector input i
-Selected terminal pair → shared AD8276 difference amplifier → Teensy voltage input
-```
-
-Place the shunt between the heater return and MOSFET drain. Route separate traces from its pads to INA190 IN+ and IN−. DCK pins are **1 REF, 2 GND, 3 VS, 4 IN+, 5 IN−, 6 OUT**. The amplifier operates continuously. Its ±15 µV maximum offset corresponds to ±0.15 mA before calibration.
-
-Both **TMUX1108PWR** selectors use 3.3 V, shared address/enable lines, and VSS and GND connected to common ground. **Enable HIGH connects; LOW disconnects.** Add the 10 kΩ enable pull-down.
-
-Connect the selected positive divider to **AD8276BRZ pin 3**, negative to **pin 2**; **pin 7** to 3.3 V, **pin 4 and REF pin 1** to ground, **SENSE pin 5** to **OUT pin 6**. OUT feeds **100 Ω with 100 pF at the ADC**. Check the complete voltage path over **0.20–2.50 V output**, approximately 0.8–10 V heater voltage after calibration, including recovery from zero-output saturation. Use the measured settling time after selection or a switching edge.
-
-| Function | Teensy 4.1 pins |
+| Function | Teensy pins |
 |---|---|
-| Eight current outputs, ADC0 | **14–21** |
-| Shared differential-voltage output, ADC1 | **26** |
-| Eight heater gates | **2–9** |
-| Selector address A0/A1/A2 | **10/11/12** |
-| Selector enable | **13** |
-| Common start / external stop | Reserve **0/1**, with defined default levels |
-
-Use the Teensy ADC library's synchronized read functions for the current/voltage pair. Measure the residual timing difference and analog-path delays with the installed filters and cables.
-
-## Appendix C — cable layout and fabrication
-
-- **25 functional conductors per eight pixels:** one positive feed, eight returns and sixteen sense connections. Start sense traces at the heater pads.
-- Rate the common feed and connector for **4.4 A** at the eight-channel ceiling.
-- An **18-conductor version** uses one feed, eight returns, eight negative senses and one shared positive sense. Include measured positive-bus variation under concurrent loads in its voltage uncertainty.
-- At a representative 6 V rail, a 4 kΩ return divider produces approximately **30 µW** of off-state heating in a 12.5 Ω heater. Include additional front-end leakage in the OFF-power bound.
-
-1. Fabricate the existing laboratory geometry from its digital CAD. Preserve cavities, wire threading and heater pads; add terminal-sense traces and verify connector orientation. Export manufacturing files through the established laboratory process.
-2. Check the shared-bus netlist. An isolated resistive bus can serve as the positive feed; remove any conflicting ground connection before use.
-3. Build one eight-channel electronics board with supply, current, voltage and gate test points. Separate power and measurement routing and keep shunts/amplifiers away from switch heating.
-4. Check eight stable resistor loads using the final cables and selector sequence. Record electrical errors, bypass-current bounds, neighboring-channel effects and total cutoff delay under concurrent loads.
-5. Obtain one same-batch resistance–temperature curve; measure each pixel's room-temperature resistance and check representative assembled pixels for baseline changes. Load channel calibration, curve identity and pulse limits into the common firmware, then duplicate the board.
-
-## Appendix D — measurement procedure
-
-```pseudocode
-At startup:
-    Set all heater gates LOW and selector enable LOW.
-    Load channel calibration, uncertainty and room-temperature resistance.
-    Initialize thermal states from ambient only after the established cooling time.
-Before each heating pulse:
-    Program a local switch-off deadline using the current temperature ranges.
-    Enable the requested heater only while that deadline remains valid.
-For each selected channel i:
-    Set selector address i and enable; wait the measured settling time.
-    Start startSynchronizedSingleRead(14+i, 26) and record acquisition times.
-    If conversion exceeds its timeout, switch off, record the fault and end this acquisition.
-    Read the pair with readSynchronizedSingle().
-    If its timestamp is no later than stored state time, switch off and discard this acquisition.
-    Advance both thermal states to the sample time using elapsed ON, edge and OFF intervals.
-    If the heater is OFF or still settling, skip the resistance update.
-    Otherwise:
-        Convert readings to calibrated shunt-current and heater-voltage intervals.
-        Add the bypass-current interval to obtain heater current.
-        Divide voltage by positive heater current, then normalize by room-temperature resistance.
-        Keep temperature cells compatible with both prediction and resistance.
-        Switch off if no state remains or prediction leaves the calibrated range.
-    Update the local deadline; retain thermal states after switch-off.
-    Log timestamps, raw readings, corrected current/voltage and temperature ranges.
-After a fault:
-    Disable further pulses until its cause is resolved and the initial thermal state is established.
-```
-
-## Appendix E — system diagram
-
-![Array system](../assets/figures/array-system.png)
+| Eight current outputs, ADC0 | 14–21 |
+| Selected differential voltage, ADC1 | 26 |
+| Eight heater gates | 2–9 |
+| Selector A0/A1/A2 | 10/11/12 |
+| Selector enable | 13 |
+| Common start / external stop | Reserve 0/1 with defined default levels |

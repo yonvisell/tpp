@@ -1,37 +1,44 @@
 {
-  "generatedAt": "2026-10-23T23:19:17.045Z",
+  "generatedAt": "2026-10-24T00:31:58.300Z",
   "documents": [
     {
       "id": "controller",
-      "title": "Temperature control for thermopneumatic pixels",
-      "sourceFile": "TactileTeleopControllerRev07.md",
-      "sha256": "7139870088723ec107a1aff7f0d6c8260cf1939fae1c8fdf799a7477805e3dd8",
-      "sections": 12
+      "title": "Temperature-limited heating pulses",
+      "sourceFile": "TactileTeleopControllerRev08.md",
+      "sha256": "0186e001781cdda55778a4e8968f57f3bdfd43897237dfc83b89d546052e7ba2",
+      "sections": 9
     },
     {
       "id": "macro",
-      "title": "MacroTPP: circuit, calibration and operation",
+      "title": "Foil pixel: circuit and calibration",
       "sourceFile": "MacroTPP-MVP.md",
-      "sha256": "11c85ac7adeede44499ac74f5b1ba1777a264755e2b84191ac6df9d59d1c6940",
-      "sections": 19
+      "sha256": "24f00c26ca3587cdd19729893f05b5679b56a3f6cbe6306dda1b9d1d0fcb2abc",
+      "sections": 5
     },
     {
       "id": "wire-array",
-      "title": "Wire TPP array — circuit and temperature control",
+      "title": "Wire array: circuit and calibration",
       "sourceFile": "WireArray-MVP.md",
-      "sha256": "7d264e59db113c6e8676d933af23561efdf9addcca8027c5e5ca58529a663cea",
-      "sections": 11
+      "sha256": "0a8bbcd83d0a2f23489ac79cc6f5a934ff822e687adf5a94af38edd9b623a751",
+      "sections": 7
     },
     {
       "id": "wire-temperature",
-      "title": "Wire-temperature calibration",
+      "title": "Wire-temperature reference",
       "sourceFile": "WireTemperature-Calibration.md",
-      "sha256": "2cd0d5c63bc2c908ec555ae8441cea9158a775ffcab61bac0981eafec620bac3",
-      "sections": 4
+      "sha256": "9feb8134e045c2eeb1d607aa1f625e858f4256fb393bbe5ef8af65e4520da153",
+      "sections": 5
+    },
+    {
+      "id": "student-mvp",
+      "title": "Student prototype: one temperature-limited foil pixel*",
+      "sourceFile": "TPP-Student-MVP.md",
+      "sha256": "e74c4d2d61bfaa35a741d4e541ecb4ea42cdba032f5369a7f7e567a906bd4e7c",
+      "sections": 6
     }
   ],
   "math": {
-    "block": 25,
-    "inline": 241
+    "block": 15,
+    "inline": 208
   }
 }
