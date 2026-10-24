@@ -207,7 +207,7 @@
 <path d="M1380 1199 L1400 1199" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
 <path d="M1385 1206 L1395 1206" fill="none" stroke="#183442" stroke-width="2.5" stroke-linejoin="round"/>
 <text x="1430" y="1195" font-size="18" fill="#183442" font-weight="400" text-anchor="start">Common ground</text>
-<text x="1120" y="1120" font-size="19" fill="#183442" font-weight="700" text-anchor="start">Temperature estimate + pulse / duty control</text>
+<text x="1120" y="1120" font-size="19" fill="#183442" font-weight="700" text-anchor="start">Temperature estimate + pulse cutoff</text>
 <rect x="45" y="1285" width="550" height="110" fill="white" stroke="#71838e" stroke-width="2"/>
 <text x="75" y="1326" font-size="24" fill="#183442" font-weight="700" text-anchor="start">PC · setup, calibration and plots</text>
 <text x="75" y="1365" font-size="20" fill="#183442" font-weight="400" text-anchor="start">USB provides 5 V power to Teensy</text>

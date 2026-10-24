@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="700" viewBox="0 0 1320 700"><rect width="1320" height="700" fill="white"/><style>text{font-family:Arial,Helvetica,sans-serif;fill:#243038} .muted{fill:#617078}</style><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10Z" fill="context-stroke"/></marker></defs>
+<text x="44" y="46" font-size="28" font-weight="600" text-anchor="start" style="fill:#243038">One channel</text>
+<text x="44" y="80" font-size="20" font-weight="400" text-anchor="start" style="fill:#617078">Measure electrical power and resistance; estimate temperature; end the pulse.</text>
+<rect x="365" y="135" width="250" height="105" rx="8" stroke="#bdcbc8" stroke-width="1.5" fill="#fff3e9"/>
+<text x="490" y="177" font-size="24" font-weight="600" text-anchor="middle" style="fill:#243038">Metal: T</text>
+<text x="490" y="211" font-size="20" font-weight="400" text-anchor="middle" style="fill:#243038">Heat capacity C</text>
+<rect x="765" y="135" width="250" height="105" rx="8" stroke="#bdcbc8" stroke-width="1.5" fill="#f2f6f5"/>
+<text x="890" y="177" font-size="24" font-weight="600" text-anchor="middle" style="fill:#243038">Surroundings: S</text>
+<text x="890" y="211" font-size="18" font-weight="400" text-anchor="middle" style="fill:#243038">Retain heat between pulses</text>
+<text x="175" y="177" font-size="21" font-weight="400" text-anchor="middle" style="fill:#243038">Electrical power</text>
+<text x="175" y="209" font-size="24" font-weight="600" text-anchor="middle" style="fill:#243038">P = VI</text>
+<path d="M270 185H365" fill="none" stroke="#b87139" stroke-width="4" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M615 185H765" fill="none" stroke="#b87139" stroke-width="3" stroke-linejoin="round" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+<text x="690" y="158" font-size="18" font-weight="400" text-anchor="middle" style="fill:#243038">Heat flow</text>
+<path d="M1015 185H1145" fill="none" stroke="#b87139" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="1190" y="166" font-size="20" font-weight="400" text-anchor="middle" style="fill:#243038">Ambient</text>
+<text x="1190" y="198" font-size="25" font-weight="600" text-anchor="middle" style="fill:#243038">A</text>
+<text x="670" y="278" font-size="17" font-weight="400" text-anchor="middle" style="fill:#617078">Thermal model</text>
+<path d="M44 300H1276" fill="none" stroke="#d8e0dd" stroke-width="1" stroke-linejoin="round"/>
+<rect x="44" y="360" width="250" height="125" rx="8" stroke="#bdcbc8" stroke-width="1.5" fill="#f2f6f5"/>
+<text x="169" y="399" font-size="23" font-weight="600" text-anchor="middle" style="fill:#243038">Voltage and current</text>
+<text x="169" y="433" font-size="19" font-weight="400" text-anchor="middle" style="fill:#243038">At the pixel terminals</text>
+<text x="114" y="466" font-size="21" font-weight="400" text-anchor="middle" style="fill:#243038">P = VI</text>
+<text x="222" y="466" font-size="21" font-weight="400" text-anchor="middle" style="fill:#243038">R = V / I</text>
+<rect x="374" y="360" width="570" height="125" rx="8" stroke="#bdcbc8" stroke-width="1.5" fill="#f2f6f5"/>
+<text x="659" y="399" font-size="24" font-weight="600" text-anchor="middle" style="fill:#243038">Temperature estimate</text>
+<text x="659" y="433" font-size="20" font-weight="400" text-anchor="middle" style="fill:#243038">1. Update T and S from power and heat loss</text>
+<text x="659" y="466" font-size="20" font-weight="400" text-anchor="middle" style="fill:#243038">2. Correct T using measured R(T)</text>
+<path d="M294 422H374" fill="none" stroke="#4e7379" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="333" y="400" font-size="18" font-weight="400" text-anchor="middle" style="fill:#243038">V, I</text>
+<rect x="1024" y="360" width="252" height="125" rx="8" stroke="#bdcbc8" stroke-width="1.5" fill="#f2f6f5"/>
+<text x="1150" y="399" font-size="23" font-weight="600" text-anchor="middle" style="fill:#243038">End the pulse</text>
+<text x="1150" y="432" font-size="20" font-weight="400" text-anchor="middle" style="fill:#243038">Temperature limit</text>
+<text x="1150" y="463" font-size="20" font-weight="400" text-anchor="middle" style="fill:#243038">or requested duration</text>
+<path d="M944 422H1024" fill="none" stroke="#4e7379" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="983" y="400" font-size="20" font-weight="600" text-anchor="middle" style="fill:#243038">T</text>
+<rect x="44" y="555" width="510" height="100" rx="8" stroke="#bdcbc8" stroke-width="1.5" fill="#f6f7f7"/>
+<text x="299" y="593" font-size="22" font-weight="600" text-anchor="middle" style="fill:#243038">Inputs prepared in advance</text>
+<text x="299" y="629" font-size="19" font-weight="400" text-anchor="middle" style="fill:#243038">R(T) curve · heat capacity · thermal coefficients</text>
+<path d="M554 603H660V485" fill="none" stroke="#4e7379" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="780" y="539" font-size="17" font-weight="400" text-anchor="middle" style="fill:#243038">Calibration and fitting</text>
+<rect x="1024" y="555" width="252" height="100" rx="8" stroke="#bdcbc8" stroke-width="1.5" fill="#f6f7f7"/>
+<text x="1150" y="594" font-size="23" font-weight="600" text-anchor="middle" style="fill:#243038">Power switch</text>
+<text x="1150" y="629" font-size="20" font-weight="400" text-anchor="middle" style="fill:#243038">ON / OFF</text>
+<path d="M1150 485V555" fill="none" stroke="#4e7379" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<path d="M1024 610H980V680H20V422H44" fill="none" stroke="#4e7379" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="752" y="670" font-size="18" font-weight="400" text-anchor="middle" style="fill:#617078">Switch command changes electrical power</text>
+</svg>

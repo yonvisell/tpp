@@ -1,1024 +1,699 @@
-# Thermopneumatic pixel drive
+# TPP control
 
 
 ---
 
-# Temperature control for thermopneumatic pixels
+# Temperature-limited heating pulses
 
-**Rev07 · 23 October 2026 · Circuit and controller specification**
+**Rev08 · Single-channel model and implementation**
 
 ## Summary
 
-- **Implement temperature-limited pulses on Teensy.** Each request supplies a temperature ceiling and maximum duration. Teensy measures voltage and current during heating and turns the switch off at the earlier limit.
-- **Use two temperatures:** metal temperature and an effective surrounding-material temperature. Keep both between pulses to account for accumulated heat. Fit three heat-transfer coefficients on the PC.
-- **Prepare electrical calibration, resistance versus temperature for the actual alloy, and active-metal heat capacity.** A short pulse sequence then identifies heat-transfer coefficients. Measure each pixel's room-temperature resistance; share the material curve among pixels made from the same stock.
-- **Handle nonmonotonic resistance with a lookup table.** Store the resistance range for each 1 °C temperature cell. Keep every cell consistent with measured resistance and thermal history; calculate switch-off time from the hottest remaining possibility.
-- **Keep firmware small:** fixed arrays, table comparisons, four temperature endpoints per possible state, and a local switch-off timer. Use heat capacity from the current temperature range; PC performs calibration, fitting and plotting.
-- **Use one material calibration, one fitting sequence and one separate operating check.** Add measurements where the operating check identifies a specific unresolved temperature or heat-transfer coefficient.
+- **End each fixed-amplitude heating pulse at an estimated temperature ceiling or its requested duration.** This controls pulse termination; tactile displacement and force remain separate quantities to measure.
+- **Predict two temperatures: metal and surrounding material.** Electrical power heats the metal, while the surroundings retain heat between pulses. Three fitted heat-transfer coefficients describe this exchange.
+- **Correct the predicted metal temperature using measured resistance and the calibrated resistance–temperature curve.** The model carries the heating and cooling history; resistance supplies a new observation. A short table search balances their agreement.
+- **Check nonmonotonicity explicitly.** Search near the predicted temperature and stop when two distinct resistance-compatible branches remain. Where resistance changes little with temperature, the model supplies most of the estimate.
+- **Use a measured stopping allowance and a local timer.** The allowance covers observed underestimation; the timer accounts for further heating and switch delay. Fit on one experiment and check fixed settings on another. The result is an effective-temperature estimate with experimentally established operating scope.
 
-## 1. Hardware and information required before operation
+## 1. One heater and its inputs
 
-**Goal:** assemble the measurement path and obtain the inputs used by the controller.
+One electrical measurement and the stored thermal state supply each control cycle.
 
-| Function | MacroTPP | Wire array |
-|---|---|---|
-| Processor | Teensy 4.1 | One Teensy 4.1 per eight pixels |
-| Current measurement | INA253EVM A3, 0.4 V/A | INA190A2 and 0.100 Ω shunt, 5 V/A |
-| Voltage measurement | Two terminal-voltage dividers; subtract on Teensy | Two TMUX1108 selectors and one AD8276 per eight pixels |
-| Switch | CSD17305Q5A on a thermally suitable carrier | AO3400A per pixel at the established wire current |
-| Temperature reference | Pyrometer viewing the active foil | Same-stock wire winding in a closed kiln, with an adjacent reference probe |
+![Single-channel heating, measurement and temperature control](../assets/figures/single-channel-control.png)
 
-Use separate voltage-sense wires at the metal terminals. Teensy uses 3.3 V signals. USB connects it to the PC; heating power comes from the adjustable supply. The array's sensing and switching boards remain in the housing, at least 10 cm from the passive pixel array.
+The adjustable supply powers one resistive heater through a switch. Separate voltage-sense connections measure across the active metal; current measurement includes any sensing-network current that bypasses the current sensor. The controller receives corrected, time-aligned voltage $`V`$ and current $`I`$.
 
-| Configuration | Required values | Use |
-|---|---|---|
-| Electrical calibration | Channel gains, offsets, errors, settling times and delays | Convert readings to terminal voltage and metal current |
-| Resistance scale | Ambient temperature $`T_a`$, pixel resistance $`R_0`$, normalized curve $`q(T)=R(T)/R_0`$ and its uncertainty | Compare resistance with possible temperatures |
-| Heat capacity | Active-metal mass $`m`$, specific heat $`c_p(T)`$, $`C(T)=mc_p(T)`$, uncertainty limits | Convert electrical heat to temperature change |
-| Thermal coefficients | Positive $`G,\beta,\gamma`$, with fitted ranges | Estimate heat loss and retained heating |
-| Electrical limits | Supply-voltage, metal-resistance and series-resistance ranges; off current | Include heat between measurements |
-| Timing | Measurement interval, maximum data age $`a_{\max}`$, timer-to-physical-off delay $`\tau_{\rm off}`$ | Calculate the switch-off deadline |
-| Operating limits | Ceiling $`T_c`$, established pulse duration $`t_p`$, repetition period $`T_r`$, maximum train length $`N_q`$ | Constrain stimulation requests |
+| Symbol | Meaning |
+|---|---|
+| $`T,S,A`$ | Effective metal, surroundings and ambient temperatures, °C |
+| $`t,\Delta t`$ | Time and elapsed update interval, s |
+| $`P`$ | Interval-average heater-power input used by the model, W |
+| $`C(T)`$ | Active-metal heat capacity, J/K |
+| $`G`$ | Metal-to-surroundings thermal conductance, W/K |
+| $`\beta`$ | Rate at which the surroundings warm in response to $`T-S`$, s⁻¹ |
+| $`\gamma`$ | Rate at which the surroundings cool toward ambient, s⁻¹ |
+| $`R_0,q(T)`$ | Metal resistance at ambient, Ω, and dimensionless curve $`R(T)/R_0`$ |
+| $`V,I`$ | Corrected heater-terminal voltage, V, and heater current, A |
+| $`e_R`$ | Normalized-resistance error allowance, dimensionless |
+| $`w`$ | Permitted temperature-correction width, K |
+| $`T_c,M`$ | Selected temperature ceiling, °C, and empirical stopping allowance, K |
 
-Determine heat capacity from active-metal geometry or mass and material data; fit only the three heat-transfer coefficients. Measure $`R_0`$ after ambient equilibration and initialize both temperatures at that condition. After a warm processor reset, disable power for the cooling time established after the hottest permitted run. A cool foil reading alone does not establish that surrounding material has cooled.
+The software interface is:
 
-## 2. Temperature estimate and switch-off calculation
+```pseudocode
+UPDATE(t, T, S, average_power, V, I, settled_reading, heating)
+    returns updated T, S, measurement_status and switch_off_deadline
+```
 
-**Goal:** turn each electrical measurement into a definite pulse-ending decision.
+Before operation, supply electrical channel calibration, $`R_0`$, the measured $`q(T)`$ points, $`C(T)`$, fitted $`G,\beta,\gamma`$, and the limits used below. Calculate $`C(T)=m c_p(T)`$ from active-metal mass $`m`$ and alloy specific heat $`c_p`$. A measured material curve can serve pixels made from the same stock; each pixel needs its own $`R_0`$.
 
-Use the two-state thermal model
+## 2. Predict heating and retained heat
+
+The thermal model predicts the next temperatures before the resistance reading is used.
+
+Use
 
 ```math
 C(T)\frac{dT}{dt}=P-G(T-S),\qquad
-\frac{dS}{dt}=\beta(T-S)-\gamma(S-T_a).
+\frac{dS}{dt}=\beta(T-S)-\gamma(S-A).
 ```
 
-Here $`T`$ is effective metal temperature (°C), $`S`$ is effective surrounding-material temperature (°C), and $`P=VI`$ is electrical power in the metal (W). Conductance $`G`$ (W/K) determines heat transfer from the metal. Rates $`\beta,\gamma`$ (s⁻¹) determine surrounding-material heating and cooling. Keeping $`S`$ during pauses accounts for the effect of previous pulses.
+Electrical power heats the metal. The term $`G(T-S)`$ transfers heat between metal and surroundings. The second equation represents warming and cooling of the effective surrounding material. Its temperature $`S`$ persists during pauses, so two otherwise identical pulses can begin from different thermal conditions.
 
-For each measurement, execute four steps:
-
-1. **Calculate voltage and current.** Apply channel calibration, align readings in time, and calculate the electrical intervals $`[V^-,V^+]`$, $`[I^-,I^+]`$. Include the uncertainty in room-temperature resistance $`[R_0^-,R_0^+]`$.
-2. **Update both temperatures through the elapsed time.** Include settled heating, switching and cooling. Appendix D gives the four temperature-endpoint calculations; Appendix E supplies electrical heat for each interval.
-3. **Keep temperatures consistent with resistance.** During settled conduction, calculate
+For a short interval, the prediction is
 
 ```math
-y^-=\frac{V^-}{I^+R_0^+},\qquad
-y^+=\frac{V^+}{I^-R_0^-}.
+T_{\rm pred}=T+\Delta t\frac{P-G(T-S)}{C(T)},\qquad
+S_{\rm pred}=S+\Delta t[\beta(T-S)-\gamma(S-A)].
 ```
 
-For each predicted metal-temperature range, keep a table cell only when its resistance range overlaps $`[y^-,y^+]`$. Intersect retained cells with the predicted temperature range. Keep their associated surroundings-temperature ranges. If no state remains, turn off the switch and report a measurement/model mismatch.
+Use the old $`T,S`$ on both right-hand sides. Divide longer intervals into steps no greater than one tenth of the smaller time scale $`C_{\min}/G`$ and $`1/(\beta+\gamma)`$, where $`C_{\min}`$ is the minimum heat capacity over the operating range. This is a practical integration setting; halve it during the offline replay and check that the change is small compared with the selected temperature resolution.
 
-4. **Set the stop time.** Let $`T_{\rm hot}`$ be the largest metal or surroundings temperature still possible, $`t_m`$ the time represented by the updated state, and $`C_{\min}`$ the smallest plausible heat capacity over the operating range. Set
+Calculate the power input in the same way during fitting and operation:
+
+1. **Settled heating:** average two consecutive measured powers from the same continuous ON interval, $`P=(V_{\rm old}I_{\rm old}+VI)/2`$.
+2. **Switching and analog settling:** use $`P=P_{\max}`$ during the measured settling interval. Calculate $`P_{\max}=V_{\max}^2/R_{\min}`$, with the largest checked terminal voltage, including excursions, and the smallest calibrated metal resistance.
+3. **OFF time:** use the measured residual power.
+4. Split an update at each switch transition or settling boundary; apply the corresponding power to each part.
+
+Initialize $`T=S=A`$ after the measured cooling period. Continue updating both temperatures during every pause.
+
+## 3. Convert the resistance curve into a correction
+
+The calibrated curve relates candidate temperatures to resistance; the update compares those predictions with the measured resistance.
+
+For a stock curve measured at a different ambient, first normalize it at the operating ambient: $`q(T)=q_{\rm cal}(T)/q_{\rm cal}(A)`$. Then $`q(A)=1`$ matches the current pixel's measured $`R_0`$. Recalculate the normalized error allowance with this scaling and ambient/reference-resistance uncertainty. Store the resulting pairs $`(T_j,q_j)`$, ordered by temperature. Between adjacent points, use
 
 ```math
-t_{\rm temperature}=t_m+
-\frac{(T_c-T_{\rm hot})C_{\min}}{P_{\max}}-\tau_{\rm off}.
+q(U)=q_j+\frac{q_{j+1}-q_j}{T_{j+1}-T_j}(U-T_j),
 ```
 
-Set the timer to the earliest of this time, the original requested pulse end, and the measurement-expiry time. If the deadline has passed, turn off immediately. Otherwise, continue until that deadline or a new measurement changes it. Measurement expiry occurs at the last valid measurement time plus $`a_{\max}-\tau_{\rm off}`$.
+where $`U`$ is a candidate temperature. Include points around each observed turning region. Interpolation represents the measured curve; its remaining error belongs in $`e_R`$.
 
-Internal heat exchange cannot raise the hotter model temperature. Electrical heating raises it by at most $`P_{\max}/C_{\min}`$. The deadline therefore includes heating after the last reading and before physical switch-off. Obtain $`P_{\max}=V_{\max}^2/R_{\min}`$ from maximum rail voltage, including excursions, and minimum metal resistance.
-
-**Example.** A resistance reading permits 420–445 °C and 615–650 °C. If thermal history permits 400–470 °C, keep 420–445 °C. If it permits 400–670 °C, keep both ranges and use at least 650 °C in the stop-time calculation. The code performs table comparisons rather than choosing an inverse branch of $`R(T)`$.
-
-## 3. Fit and check the thermal response
-
-**Goal:** estimate three coefficients from one short electrical sequence and check a different sequence.
-
-Use an amplitude, duration $`t_p`$, repetition period $`T_r>t_p`$ and train length already demonstrated on the pixel. Set $`N=\min(10,N_q)`$.
-
-1. From ambient, apply one $`t_p/2`$ pulse; wait $`40T_r`$ after switch-off.
-2. Apply one $`t_p`$ pulse; wait $`40T_r`$.
-3. Apply $`N`$ pulses of duration $`t_p`$, starting every $`T_r`$.
-4. Wait $`2T_r`$ after the final switch-off; apply one $`t_p`$ pulse.
-5. Wait $`20T_r`$; apply one final $`t_p`$ pulse.
-
-Save timestamps, gate transitions, terminal voltage, metal current, saturation/settling flags, ambient temperature and $`R_0`$. Keep the modeled thermal state through every pause. Compare resistance only during settled conduction. If a half-duration pulse contains no settled reading, use $`t_p`$ instead.
-
-Fit $`G,\beta,\gamma`$ by simulating temperature from measured power, calculating $`q(T)`$, and minimizing its weighted difference from measured $`R/R_0`$. Appendix C specifies starting values, numerical settings and parameter-range calculation.
-
-For the independent operating check, alternate $`t_p/2`$ and $`t_p`$ for up to $`N`$ pulses at period $`T_r`$, wait $`5T_r`$, and apply one $`t_p`$ pulse. Keep fitted coefficients fixed. Compare measured and predicted resistance within each pulse and across pulse number. Run the complete observer on these data and determine whether its upper temperature estimate permits useful tactile output. For an array, include the intended neighboring-pixel activity.
-
-| Observation | Action |
-|---|---|
-| Both sequences fit and useful pulses remain below the ceiling | Use the calibrated pulse amplitude, repetition rate and load range |
-| Fits disagree mainly after a pause | Add the restart pulse giving the greatest predicted resistance separation |
-| Fits disagree near a resistance turning point | Add one equilibrium temperature reference there |
-| Residuals grow with pulse number or mechanical load | Refit for that condition; add a thermal state only if the repeated discrepancy remains |
-| Electrical uncertainty consumes the temperature margin | Improve that measurement before increasing power |
-
-## 4. Firmware organization
-
-**Goal:** keep real-time work to measurement, arithmetic and switch commands.
-
-- **Configuration:** electrical gains/errors, resistance cells, heat-capacity data, coefficient ranges, power limits and timing limits; loaded before a run.
-- **Per-pixel state:** up to eight entries, each containing metal and surroundings temperature ranges and a coefficient-set identifier; also state time, requested pulse end and current deadline.
-- **Measurement/control routine:** read channels, update states, apply the resistance table, set the deadline.
-- **Timer:** drive the gate low at the deadline. Gate-low is the reset/default state.
-- **PC connection:** load settings and retrieve traces. Buffer data while heating; transfer it outside the measurement calculation.
-
-Use at most two coefficient sets. If more than eight state entries arise, merge the nearest pair with the same coefficient-set identifier: replace each temperature interval by the smallest interval containing both. This retains both possibilities. For an array, run the same calculations per pixel and schedule the bank timer for the earliest pending deadline.
-
-## Appendix A. Electrical calibration and measurement pseudocode
-
-**Goal:** obtain calibrated, time-aligned voltage/current readings and measured error allowances.
-
-Apply two reference values spanning each channel's operating range, then check an intermediate value and repeated/warm-board readings. Retain the final electronics and cables. For the macro current channel, place the reference ammeter in the INA253/MOSFET branch. Calibrate the small negative-terminal voltage over its actual range.
-
-```pseudocode
-CALIBRATE_CHANNEL(code_low, value_low, code_high, value_high):
-    gain = (value_high - value_low) / (code_high - code_low)
-    offset = value_low - gain * code_low
-    return gain, offset
-
-CHECK_CHANNEL(reference_trials, gain, offset):
-    error = 0
-    for each trial:
-        estimated = gain * trial.code + offset
-        error = max(error, abs(estimated-trial.reference) + trial.reference_error)
-    return error
-```
-
-Pulse a stable resistor through the complete circuit. Set settling time to the first time after switching at which reconstructed resistance stays within its selected error allowance. Measure channel delays and the delay from a gate-off command to cessation of heating. Repeat at the intended current and after the circuit warms. Measure residual off current in a foil power lead, which includes current bypassing the sensor through the divider.
-
-For MacroTPP, acquire three pairs: current/positive terminal, current/negative terminal, current/positive terminal. Correct timestamps for channel delay and interpolate to the middle negative-terminal time. Interpolate within settled conduction only.
-
-```pseudocode
-MEASURE_MACRO():
-    read the three current/voltage pairs, each with a timeout
-    convert codes with channel gains and offsets
-    subtract each channel delay from its sample time
-    t = middle negative-terminal sample time
-    Vplus = interpolate bracketing positive-terminal samples at t
-    Isensor = interpolate bracketing current samples at t
-    Vminus = middle negative-terminal voltage
-    V = Vplus - Vminus
-    I = Isensor + Vminus / Dminus
-    return t, V, I, electrical_errors, settled, saturated
-```
-
-The negative divider's measured total resistance $`D_{\rm minus}`$ is nominally 2000 Ω. Its current traverses the foil but bypasses the sensor. In the array, calibrate the selected shunt-current and differential-voltage channels, then include divider bypass current as below. Calculate resistance only when the current's lower error limit exceeds the minimum calibrated current.
-
-Construct error intervals explicitly. Interpolate lower and upper sample limits using the same nonnegative interpolation weights. For the macro circuit,
+During settled conduction calculate
 
 ```math
-\begin{aligned}
-V^-&=V_+^- -V_-^+,\qquad V^+=V_+^+-V_-^-,\\
-I^-&=I_s^-+\max(0,V_-^-)/D_-^+,\\
-I^+&=I_s^++\max(0,V_-^+)/D_-^-.
-\end{aligned}
+y=\frac{V}{I R_0}.
 ```
 
-Widen these intervals by the residual timing and settling errors established with the resistor. The array's negative-terminal divider also bypasses its shunt: add its calibrated bypass-current range to the sensor-current interval. A shared differential-voltage output alone does not measure that bypass current.
-
-## Appendix B. Temperature references and resistance-table pseudocode
-
-**Goal:** establish the temperature scale and prepare simple Teensy comparisons.
-
-For foil, collect pyrometer temperature, voltage and current at steady DC conditions. Check temperature agreement along the active resistance-bearing path, with the measured region filling the pyrometer spot and emissivity/reflection corrections applied. If that path is nonuniform, the result is a geometry-specific resistance-versus-spot-temperature calibration; it does not establish the material's uniform-temperature curve.
-
-For wire, wind a long same-stock length on an insulating ceramic fixture with separated turns. Keep it inside the closed kiln during measurement. Route heat-resistant leads through an existing rated feedthrough; place the reference probe adjacent to the winding. Use low measurement current and wait for temperature and resistance to settle. Opening the kiln before measuring introduces an unknown cooling interval. Series-connected foil and wire need not have equal temperatures because heat loss per unit length and end cooling differ.
-
-Include ambient, both sides of each resistance extremum, the extremum region and the highest operating temperature. Repeat selected points during cooling. Normalize resistance by its ambient value. Use piecewise-linear interpolation with lower and upper curves $`q_-(T),q_+(T)`$ including reference error, observed variation and interpolation uncertainty. Begin with five anchors for a simple single-extremum curve; add points where its shape remains unresolved.
-
-```pseudocode
-BUILD_RESISTANCE_TABLE(measured_points, interpolation_allowance):
-    for each measured point:
-        R = measured_voltage / measured_current
-        q = R / ambient_resistance
-        q_low = V_low / (I_high * R0_high)
-        q_high = V_high / (I_low * R0_low)
-    sort points by temperature
-    construct central, lower and upper piecewise-linear curves
-    widen lower/upper curves for temperature-reference and interpolation errors
-
-    for each 1-degree cell [T0, T1]:
-        points = T0, T1, and every calibration knot inside this cell
-        cell.q_low = minimum lower-curve value at these points
-        cell.q_high = maximum upper-curve value at these points
-        round q_low down and q_high up when storing floating-point values
-    save central curve for PC fitting and cells for Teensy
-
-BUILD_HEAT_CAPACITY_TABLE(mass_low, mass_high, material_data):
-    for each temperature cell covering operation plus one update's possible rise:
-        cp_low = smallest specific heat permitted over the whole cell
-        cp_high = largest specific heat permitted over the whole cell
-        cell.C_low = mass_low * cp_low
-        cell.C_high = mass_high * cp_high
-        round C_low down and C_high up for storage
-    Cmin = minimum C_low over all cells
-    save the capacity cells and Cmin
-```
-
-An 800-cell table uses 6.4 kB for two 32-bit resistance limits per cell. The index supplies temperature edges. Retaining whole cells enlarges each compatible-range boundary by at most 1 °C relative to the represented calibration band.
-
-## Appendix C. Experiment and model-fitting pseudocode
-
-**Goal:** reproduce the short experiment and calculate coefficients without choosing a resistance inverse.
-
-```pseudocode
-COLLECT_FITTING_DATA(tp, Tr, Nq):
-    N = min(10, Nq)
-    initialize from ambient; start timestamped electrical logging
-    pulse(tp/2); wait_after_switch_off(40*Tr)
-    pulse(tp); wait_after_switch_off(40*Tr)
-    repeat N times, with pulse starts separated by Tr:
-        pulse(tp)
-    wait_after_switch_off(2*Tr); pulse(tp)
-    wait_after_switch_off(20*Tr); pulse(tp)
-    save electrical data, transitions and configuration
-```
-
-The `pulse` operation uses the established amplitude and finite duration; every wait preserves thermal history. Use the full duration in place of the half-duration pulse when required for a settled reading.
-
-Fit positive coefficients through their logarithms. Reference scales are $`G_*=C(T_a)/t_p`$, $`\beta_*=1/T_r`$, $`\gamma_*=1/(20T_r)`$. Try all 27 starting combinations of factors 0.1, 1 and 10. Weight each normalized-resistance residual by its measured repeatability $`s_k`$.
-
-```pseudocode
-RESIDUALS(log_parameters, experiment, heat_capacity):
-    G, beta, gamma = reference_scales * exp(log_parameters)
-    set T and S to the independently established initial temperature
-    solve the two temperature equations through the complete experiment
-        use measured power; retain state through pauses
-        split integration at each switch transition
-    if integration fails or leaves the calibrated temperature range:
-        return a fixed-length vector of large residuals and a failure flag
-    for each settled conducting sample k:
-        predicted_q = central_resistance_curve(T_at_sample_k)
-        residual[k] = (predicted_q - measured_q[k]) / s[k]
-    return residual
-
-FIT_MODEL(experiment):
-    solutions = empty list
-    fit the nominal data from each of the 27 starting combinations
-    keep distinct compatible solutions
-    if none remain: stop and report that the model does not explain the data
-    for each heat-capacity and electrical-calibration variant:
-        refit from each retained solution
-        keep distinct fits consistent with the full measurement-error bands
-    repeat best fits with integration tolerances ten times smaller
-    require predicted q to change by less than 0.1 * smallest s[k]
-    return solutions
-```
-
-Use SciPy `least_squares`, method `trf`, linear loss, `x_scale=1`; use `solve_ivp`, method `Radau`, initially `rtol=1e-6`, `atol=1e-4` °C. Start searches between $`10^{-4}`$ and $`10^4`$ times each reference scale. Extend a search that reaches its endpoint; optimizer search limits are not physical parameter limits.
-
-Interpolate measured power within settled intervals. At switching edges, use the measured waveform; if unresolved, repeat fitting with the lower and upper transition energies from Appendix E. Repeat for heat-capacity and channel-calibration alternatives. These trials assess sensitivity; check the resulting parameter ranges on the independent operating sequence.
-
-```pseudocode
-MAKE_FIT_VARIANTS(nominal_data, calibration_uncertainties):
-    variants = nominal data
-    add one variant using the lower heat-capacity curve
-    add one variant using the upper heat-capacity curve
-    for each voltage/current channel gain and offset:
-        create one variant at its lower calibration limit and one at its upper limit
-        apply that same change to the entire trace and the R0 measurement
-        recompute voltage, current, power and normalized resistance
-    if switch-edge energy was unresolved:
-        add variants using all lower and all upper transition energies
-    return variants
-```
-
-Vary one calibration quantity at a time; keep all other values nominal. This is a defined sensitivity calculation, supplemented by fitting against the complete error bands. Coefficient ranges inferred from these trials and profiles are engineering estimates, not a guarantee that every joint parameter combination has been identified.
-
-```pseudocode
-FIND_PARAMETER_RANGES(solutions):
-    for each distinct solution and each coefficient:
-        search upward and downward, for at most 20 doubling/halving steps each
-            hold this coefficient fixed and refit the other two
-            compare predicted resistance with electrical plus curve uncertainty
-            stop in that direction at the first incompatible fit
-        if every trial in a direction remains compatible: mark its endpoint unresolved
-        otherwise bisect the last interval until endpoint ratio is below 1.05
-    if an endpoint is unresolved: request the additional restart measurement below
-    enclose compatible coefficients in one or two parameter sets
-    run the complete observer on the separate operating sequence
-    return parameter sets and operating-check results
-```
-
-For an unresolved coefficient range, simulate restart pulses after $`T_r,2T_r,5T_r,10T_r,20T_r,40T_r`$. Select the pause producing the greatest predicted resistance separation relative to measurement error. Perform that one additional restart experiment, then refit. Prioritize ambiguities that prevent useful pulses at the selected ceiling.
-
-## Appendix D. Thermal-update pseudocode and mathematical basis
-
-**Goal:** update the temperature ranges with explicit arithmetic in temperature units.
-
-Each state stores $`T^-,T^+,S^-,S^+`$ and its coefficient-set identifier. Superscripts indicate lower/upper limits. Store lower/upper heat-capacity values for each temperature cell on the PC, including mass, specific-heat and interpolation uncertainty. Let $`C_{\min}`$ denote the smallest capacity over the complete operating range; keep this global value in the switch-off calculation. For a signed difference $`d`$, define
+Prepare a table of $`q(U)`$ at **1 °C spacing**, using the interpolation above. Also calculate $`L`$, the largest absolute interpolation slope. For each table temperature within $`T_{\rm pred}\pm w`$, test
 
 ```math
-\mathrm{low}(a,d)=\min(a^-d,a^+d),\qquad
-\mathrm{high}(a,d)=\max(a^-d,a^+d).
+|y-q(U)|\le e,\qquad e=e_R+L\,(1\ ^\circ\mathrm C).
 ```
 
-These products handle either direction of heat flow. Subdivide time so that
+The second term allows for the grid and a window boundary between grid points. The 1 °C spacing is a numerical resolution, not a measurement accuracy. Require $`w\ge1`$ K. Consecutive passing grid indices form a continuous run. No run means disagreement between the electrical reading and the allowed correction. More than one separated run means that distinct local resistance branches remain. Either result ends the heating pulse.
+
+When one run remains, choose its temperature minimizing
 
 ```math
-h\le\min\{C_{\min}/G^+,\;1/(\beta^++\gamma^+)\}.
+J(U)=\left(\frac{U-T_{\rm pred}}{w}\right)^2+
+\left(\frac{y-q(U)}{e_R}\right)^2.
 ```
 
-Let $`[E^-,E^+]`$ enclose electrical heat delivered in that step and $`P_*`$ be its instantaneous power limit. First calculate the temperature range that can be reached during the step:
+Also evaluate $`J`$ at the continuous prediction $`T_{\rm pred}`$ itself, using interpolated resistance, if it passes the same resistance test. Select the lower-cost candidate; choose the continuous prediction on a tie. This preserves temperature changes smaller than a grid step. Set $`T`$ to the selected temperature and $`S=S_{\rm pred}`$. The calculation balances the prediction against resistance agreement. A flat $`q`$ gives nearly equal resistance scores; the first term then keeps the estimate near the prediction. A steep slope makes resistance more informative. The initialized thermal history selects the search region; resistance distinguishes temperatures within it.
+
+**Set two fixed correction settings:**
+
+1. **Resistance allowance $`e_R`$:** add the checked electrical-error allowance and the curve-error allowance, both expressed as fractions of $`R_0`$. Include reference uncertainty, observed heating–cooling variation and the stated interpolation allowance. Store a positive value.
+2. **Search width $`w`$:** compare the uncorrected model with aligned independent temperature readings on the fitting experiment. Take the largest absolute temperature difference, add reference uncertainty and 1 K, and use at least 1 K. Keep this width fixed for validation.
+
+When independent temperature readings are unavailable, $`w`$ is a declared engineering setting. Section 5 states the operating claim supported by that case.
+
+**Illustrative curve.** Suppose measured anchors were $`(20,1.000),(400,1.040),(600,1.060),(800,1.040)`$. These values illustrate the calculation and are not a NiCr calibration. A reading $`y=1.050`$ has solutions near 500 and 700 °C. With $`T_{\rm pred}=510`$ °C and $`w=20`$ K, only the neighborhood of 500 °C is searched. With a prediction of 600 °C and a 120 K search window, both branches remain and heating stops.
+
+## 4. End a heating pulse
+
+Each pulse ends at the earliest temperature, duration or data-age limit.
+
+The requested pulse specifies fixed voltage, maximum duration and $`T_c`$. Set the stopping allowance $`M`$ from the completed observer on the fitting experiment:
+
+1. At each aligned reference reading, subtract the corrected estimate from the independently measured temperature.
+2. Keep the largest positive difference, or zero if all differences are negative.
+3. Add the temperature-reference uncertainty and 1 K for the numerical grid.
+4. Check this fixed allowance on the separate validation experiment.
+
+At state time $`t`$, calculate
 
 ```math
-\begin{aligned}
-M&=\max(T^+-T_a,S^+-T_a)+P_*h/C_{\min},\qquad g_0=G^+/C_{\min},\\
-T_{\rm reach}^-&=\max(T_a,T^- -hg_0M),\\
-T_{\rm reach}^+&=\min(T_a+M,T^+ +h[P_*/C_{\min}+g_0M]).
-\end{aligned}
+t_{\rm temperature}=t+
+\frac{[T_c-M-\max(T,S)]C_{\min}}{P_{\max}}-\tau_{\rm off},
 ```
 
-Take the smallest and largest capacity values in every cell intersecting this range; call them $`c^-,c^+`$. Then set $`g^-=G^-/c^+`$, $`g^+=G^+/c^-`$. Using local capacity values avoids treating its entire temperature dependence as uncertainty on every update. Calculate
+where $`P_{\max}`$ bounds delivered heater power, including switching excursions, and $`\tau_{\rm off}`$ is the measured timer/physical-turn-off delay. Set the local timer to the earliest of this deadline, the original requested pulse end, and the last valid reading plus the permitted data age minus $`\tau_{\rm off}`$. Turn off immediately if that time has passed.
+
+The hotter model state cannot increase through passive internal heat exchange alone. Added electrical power gives the rise allowance $`P_{\max}/C_{\min}`$. The stopping rule combines this modeled rise with the experimentally checked allowance $`M`$.
+
+**One clock cycle.** Take illustrative values $`T=500`$, $`S=100`$, $`A=20`$ °C; $`C=0.001`$ J/K, $`G=0.001`$ W/K, $`\beta=1`$, $`\gamma=0.2`$ s⁻¹; $`P=10.4`$ W and $`\Delta t=0.001`$ s. The prediction is $`T_{\rm pred}=510`$, $`S_{\rm pred}=100.384`$ °C. With the illustrative curve, $`y=1.050`$, $`w=20`$ K and $`e_R=0.001`$, the grid minimum is **502 °C**: its prediction and resistance contributions to $`J`$ are 0.16 and 0.04.
+
+For $`T_c=550`$ °C, $`M=15`$ K, $`P_{\max}=12`$ W, $`C_{\min}=0.001`$ J/K and $`\tau_{\rm off}=50`$ µs, the temperature deadline is **2.70 ms after this state time**. A shorter requested duration or earlier data expiry takes precedence.
+
+## 5. Fit once, then validate separately
+
+Parameter fitting and validation use different recorded sequences.
+
+The fitting experiment identifies $`G,\beta,\gamma`$. Choose a checked pulse width $`t_p`$ and onset interval $`t_r>t_p`$; keep the voltage fixed. Log gate transitions, voltage, current and ambient temperature throughout:
+
+1. From ambient, apply one pulse of width $`t_p`$; wait $`4t_r`$ after turn-off.
+2. Apply four pulses, with starts separated by $`t_r`$.
+3. Wait $`t_r`$ after the last turn-off; apply one pulse.
+4. Wait $`4t_r`$ after turn-off; apply one final pulse.
+
+The isolated pulse identifies rapid heating. The train and restart pulses reveal heat retained between pulses.
+
+For each positive candidate $`G,\beta,\gamma`$, replay the complete record from ambient using the power-input recipe and prediction equations. **Do not apply resistance corrections during this replay.** Minimize
 
 ```math
-\begin{aligned}
-L_T&=P_*/c^-+g^+M,\quad L_S=(\beta^++\gamma^+)M,\\
-\epsilon_T&=\tfrac12 g^+(L_T+L_S)h^2,\\
-\epsilon_S&=\tfrac12[\beta^+L_T+(\beta^++\gamma^+)L_S]h^2.
-\end{aligned}
+J_{\rm fit}=\sum_{k\in\text{settled readings}}
+\left[\frac{q(T(t_k))-V_k/(I_kR_0)}{e_R}\right]^2.
 ```
 
-Here $`M`$ limits temperature rise during the step; $`L_T,L_S`$ limit temperature-change rates. The $`\epsilon`$ terms include variation of heat exchange within the step. Electrical heat is integrated separately, requiring no derivative of the switching waveform.
+Fix heat capacity from the measured geometry and material data. Three fitted coefficients then describe heat transfer. Appendix B gives a small derivative-free search. Independent temperature observations, where available, distinguish fits with similar resistance predictions but different temperature histories.
+
+For foil, a pyrometer can provide these observations when its spot lies on the active metal, emissivity is calibrated, and its temporal response resolves the experiment. Begin with sufficiently slow pulses for that instrument. For ultrafine wire, the same-stock equilibrium calibration establishes the material curve; it does not supply in-pulse temperature observations.
+
+The validation experiment checks the completed controller with fixed coefficients, $`e_R,w,M`$, voltage and load range:
+
+1. From the same initial ambient condition, apply four pulses with alternating widths $`t_p/2,t_p,t_p/2,t_p`$, starting every $`t_r`$.
+2. Wait $`2t_r`$ after the final turn-off, then apply one pulse of width $`t_p`$.
+3. Use full-duration pulses throughout if a half pulse supplies no settled reading.
+
+Evaluate four outcomes:
+
+1. Predicted and measured resistance agree without refitting.
+2. Independent temperature, where resolved, stays within the stated stopping allowance and below the ceiling after turn-off.
+3. The observer remains on a coherent branch and permits useful displacement or force.
+4. Pulse termination and retained heating behave correctly under the intended mechanical load.
+
+Agreement in resistance tests electrical prediction, including across a nonmonotonic curve. Without resolved independent temperature data, use the observer as experimental estimate-based pulse control within the previously checked finite-pulse protocol; $`M`$ remains a declared engineering margin. A demonstrated temperature-error allowance requires the independent reference. Restrict operation to the checked pulse, load and repetition range.
+
+## Appendix A. Clock-cycle arithmetic
+
+The following calculation runs once per channel update.
+
+The table contains candidate temperature `U` and interpolated `q`. A settled reading is invalid if it times out, saturates, or has current below the calibrated measurement range. `permitted_data_age` is the configured maximum delay between valid readings. Time `t` is the update endpoint; `state_time` is the previously represented time. Split intervals at switching events. The electrical routine supplies interval-average `P` and a valid settled reading flag.
 
 ```pseudocode
-THERMAL_STEP(state, parameters, h, E_low, E_high, P_limit):
-    copy old T_low, T_high, S_low, S_high
-    M = max(T_high-Ta, S_high-Ta) + P_limit*h/Cmin
-    g0 = G_high/Cmin
-    reach_low = max(Ta, T_low-h*g0*M)
-    reach_high = min(Ta+M, T_high+h*(P_limit/Cmin+g0*M))
-    cells = heat-capacity cells intersecting [reach_low, reach_high]
-    c_low = smallest lower capacity in cells
-    c_high = largest upper capacity in cells
-    g_low = G_low/c_high
-    g_high = G_high/c_low
-    LT = P_limit/c_low + g_high*M
-    LS = (beta_high+gamma_high)*M
-    epsilon_T = 0.5*g_high*(LT+LS)*h*h
-    epsilon_S = 0.5*(beta_high*LT+(beta_high+gamma_high)*LS)*h*h
-    d_low = T_low - S_low
-    d_high = T_high - S_high
-    new_T_low = T_low + E_low/c_high - h*high(g,d_low) - epsilon_T
-    new_T_high = T_high + E_high/c_low - h*low(g,d_high) + epsilon_T
-    new_S_low = S_low + h*(low(beta,d_low)-gamma_high*(S_low-Ta)) - epsilon_S
-    new_S_high = S_high + h*(high(beta,d_high)-gamma_low*(S_high-Ta)) + epsilon_S
-    set both new lower temperatures to at least Ta
-    return new temperatures with the same coefficient-set identifier
-
-UPDATE_THERMAL_STATES(states, start_time, end_time):
-    split elapsed time at switch transitions and settling boundaries
-    subdivide intervals to satisfy the step-size condition
-    for each interval:
-        obtain E_low, E_high and P_limit from Appendix E
-        replace every state by THERMAL_STEP(state, interval)
-    return states at end_time
+UPDATE(t, T, S, P, V, I, settled, heating):
+    if t <= state_time: switch OFF; return timestamp_fault
+    if heating and settled and readings_invalid: switch OFF; return measurement_fault
+    remaining = t-state_time
+    hmax = 0.1*min(Cmin/G, 1/(beta+gamma))
+    while remaining > 0:
+        h = min(remaining,hmax)
+        Tnew = T + h*(P-G*(T-S))/C(T)
+        Snew = S + h*(beta*(T-S)-gamma*(S-A))
+        T = Tnew; S = Snew; remaining = remaining-h; state_time = state_time+h
+        if T is outside calibration: switch OFF; return range_fault
+    state_time = t
+    if not heating: return T, S
+    if settled:
+        y = V/(I*R0)
+        predicted = T; best_cost = infinity; runs = 0; previous_pass = false
+        for consecutive grid entries with abs(U-predicted) <= w:
+            passes = abs(y-q) <= eR + L*grid_step
+            if passes and not previous_pass: runs = runs+1
+            if passes:
+                cost = ((U-predicted)/w)^2 + ((y-q)/eR)^2
+                if cost < best_cost: best_cost = cost; best_T = U
+            previous_pass = passes
+        if runs != 1: switch OFF; return mismatch_or_ambiguity
+        q_pred = interpolate_q(predicted)
+        if abs(y-q_pred) <= eR + L*grid_step:
+            cost = ((y-q_pred)/eR)^2
+            if cost <= best_cost: best_T = predicted
+        T = best_T; last_valid_time = t
+    temperature_end = t + (Tc-M-max(T,S))*Cmin/Pmax - turn_off_delay
+    data_end = last_valid_time + permitted_data_age - turn_off_delay
+    deadline = min(original_pulse_end,temperature_end,data_end)
+    if deadline <= now: switch OFF
+    else: arm local switch-off timer for deadline
+    return T, S, deadline
 ```
 
-If the reachable range exceeds the heat-capacity table, switch off and report a configuration-range error. At table construction, include the full allowed temperature range and the maximum temperature change during one update.
+A fault preserves the last computed state and disables subsequent pulses. Before starting a pulse, update OFF cooling to its start time, set `last_valid_time` to that time, and fix `original_pulse_end = start_time + requested_duration`. Calculate the same deadline above. In one short uninterrupted operation, check that the deadline is future, arm the timer and enable the switch; otherwise leave it OFF. Record the actual gate transition. The data-expiry term supplies the first-reading deadline. After reset, complete the established cooldown before initializing to ambient.
 
-Under the step-size condition each Euler update is nondecreasing in both old temperatures for the capacity interval selected for that step. Lower/upper state corners, coefficient ranges and integration allowances therefore enclose the output. The endpoint temperature differences identify state corners, rather than extrema of the difference itself. This calculation allows temperature-dependent coefficients within the specified ranges without their derivatives.
+## Appendix B. Reproducible coefficient search
 
-The reachable-temperature calculation contains the entire within-step trajectory: the hotter state can rise by at most $`P_*h/C_{\min}`$, and metal cooling is limited by $`g_0M`$. Consequently the selected capacity cells cover all temperatures used during the step. This replaces a separate heat-content table and its inverse with a minimum/maximum lookup.
+A direct multiplicative search gives a reproducible initial fit.
 
-## Appendix E. Electrical heat between readings
-
-**Goal:** include settled heating, switching and cooling in every temperature update.
-
-For fixed-voltage drive, measure supply range $`[V_s^-,V_s^+]`$ and effective series resistance $`R_s=(V_s-V)/I`$ over intended current and circuit temperature. The calibrated material curve and $`R_0`$ give the complete metal-resistance range $`[R_{\min},R_{\max}]`$. For $`R_{\min}>R_s^+\ge R_s^-\ge0`$,
-
-```math
-P_{\rm on}^- = \frac{(V_s^-)^2R_{\max}}{(R_{\max}+R_s^+)^2},\qquad
-P_{\rm on}^+ = \frac{(V_s^+)^2R_{\min}}{(R_{\min}+R_s^-)^2}.
-```
-
-For settled off time, use $`P_{\rm off}^+=R_{\max}I_{\rm off,max}^2`$. Measure residual metal current, including divider and electronics leakage. During switching and analog settling, use $`P_{\max}=V_{\max}^2/R_{\min}`$, including voltage excursions.
+Use reference values $`G=C(A)/t_p`$, $`\beta=1/t_r`$, $`\gamma=1/(4t_r)`$. Try exactly three starts, multiplying all three reference values together by 0.1, 1 or 10. This is a small local search; independent temperature checks distinguish physically different fits.
 
 ```pseudocode
-ELECTRICAL_HEAT(interval_type, duration):
-    if interval_type == settled_ON:
-        return P_on_low*duration, P_on_high*duration, P_on_high
-    if interval_type == settled_OFF:
-        return 0, P_off_high*duration, P_off_high
-    return 0, Pmax*duration, Pmax
+COST(G, beta, gamma):
+    set T=A, S=A, cost=0
+    replay every logged power interval using the prediction equations
+    at each valid resistance sample:
+        cost = cost + ((q(T)-V/(I*R0))/eR)^2
+    return cost, or infinity if temperature leaves calibration
+
+FIT():
+    for common starting factor 0.1, 1 and 10:
+        coefficients = starting_factor * reference_coefficients
+        ratio = 2
+        for at most 200 search rounds:
+            evaluate current coefficients and six alternatives:
+                multiply or divide one coefficient by ratio
+            if an alternative lowers COST: retain the best alternative
+            else: ratio = sqrt(ratio)
+            if ratio < 1.02: finish this start
+        if search completed and cost is finite: retain fit and predicted temperatures
+    if no finite completed fit remains: return fitting_failure
+    return the lowest-cost completed fit and the other completed fits
 ```
 
-Apply the settled-ON expression while the supply remains in constant-voltage operation. Stop a run when the measured power interval, including electrical error, has no overlap with the configured power interval. Integrating measured $`VI`$ supplies the energy trace for fitting and plots; the wider interval includes unmeasured changes between samples.
+Inspect systematic residuals and alternative temperature histories. Unfinished searches or incompatible independent temperatures require resolving that specific fit before operation. The validation record remains separate from fitting and allowance selection.
 
-## Appendix F. Resistance correction and complete pulse-controller pseudocode
+## Appendix C. Physical interpretation and processor implementation
 
-**Goal:** specify every start, measurement update and stop.
+The processor executes the same arithmetic as the offline replay.
 
-```pseudocode
-MATCH_RESISTANCE(states, y_low, y_high):
-    result = empty list
-    for each state:
-        if state temperature extends outside the calibrated table:
-            switch gate OFF; disable further pulses; report calibration-range error
-            return original states without resistance correction
-        current_run = empty
-        for each temperature cell overlapping [state.T_low, state.T_high]:
-            if cell.q_low <= y_high AND cell.q_high >= y_low:
-                T_low = max(state.T_low, cell.temperature_low)
-                T_high = min(state.T_high, cell.temperature_high)
-                extend current_run when adjacent; otherwise finish it and start a new run
-            else:
-                finish current_run, if present
-        finish current_run, if present
-    return result
+A Teensy 4.1 can perform the single-channel arithmetic locally. The macro circuit measures current and both terminal voltages; the wire channel measures shunt current and selected differential voltage. Apply each circuit's measured bypass-current correction before forming $`VI`$ or $`V/I`$. USB transfers configuration and buffered records outside the pulse-control calculation.
 
-FINISH_RUN(current_run, source_state):
-    create candidate with this T range, source S range and coefficient-set identifier
-    if result has fewer than eight entries: append candidate
-    else:
-        among result plus candidate, find closest T ranges sharing a coefficient set
-        merge that pair using the smallest enclosing T and S intervals
-        store the resulting eight entries
-    clear current_run
-
-SET_STOP_TIME():
-    T_hot = largest T_high or S_high among all stored states
-    temperature_end = state_time + (ceiling-T_hot)*Cmin/Pmax - turn_off_delay
-    data_end = last_valid_measurement_time + max_data_age - turn_off_delay
-    deadline = min(requested_end, temperature_end, data_end)
-    if deadline <= now:
-        switch gate OFF
-    else:
-        set the local switch-off timer to deadline
-
-START_PULSE(ceiling, duration):
-    require initialized temperatures and no unresolved fault
-    require gate is OFF, repetition interval elapsed, and train count below its limit
-    require ceiling and duration within configured operating limits
-    finish or discard pending measurement reads before updating OFF state
-    update stored temperatures through elapsed OFF time to now
-    state_time = now
-    requested_end = now + duration
-    last_valid_measurement_time = now
-    SET_STOP_TIME()
-    briefly prevent timer interrupts:
-        if deadline > now:
-            arm timer, switch gate ON and save transition time
-    restore timer interrupts
-    if gate was switched ON:
-        save pulse-start time and increment train count
-
-ON_MEASUREMENT(sample):
-    if timeout or channel failure:
-        switch gate OFF; disable further pulses; report fault; return
-    if sample.time <= state_time:
-        discard this sample; return
-    update states to sample.time using all elapsed power intervals
-    state_time = sample.time
-    if sample is settled_ON:
-        if sample is saturated:
-            switch gate OFF; disable further pulses; report fault; return
-        if current's lower limit is below the calibrated minimum:
-            switch gate OFF; disable further pulses; report fault; return
-        if measured and configured power intervals do not overlap:
-            switch gate OFF; disable further pulses; report fault; return
-        calculate y_low and y_high from voltage, current and R0 errors
-        states = MATCH_RESISTANCE(states, y_low, y_high)
-        if states is empty:
-            switch gate OFF; disable further pulses; report mismatch; return
-        last_valid_measurement_time = sample.time
-    if gate is ON:
-        SET_STOP_TIME()
-    save sample, temperature ranges, energy and stop reason in a buffer
-
-ON_TIMER_DEADLINE():
-    switch gate OFF
-    log switch time
-
-WHILE_GATE_IS_OFF():
-    finish or discard pending measurement reads
-    UPDATE_THERMAL_STATES(states, state_time, now)
-        include physical turn-off and settling before residual off power
-    state_time = end time of that update
-    retain both temperatures for the next pulse
-    transfer buffered measurements when time is available
-```
-
-Use one gate-off helper so every stop logs its transition time. The array version stores these fields per pixel and sets the bank timer to the earliest deadline. At expiry, turn off all pixels whose deadlines have arrived and schedule the next. A measurement/model fault disables subsequent requests until its cause is corrected and the initial thermal condition is re-established.
-
-## Appendix G. Interpretation of the temperature result
-
-**Goal:** distinguish effective metal temperature from spatial peak temperature.
-
-The estimate contains the actual reduced-model state when initial temperatures, electrical heat, thermal coefficients, heat capacity and resistance calibration lie within their specified ranges. The fitting sequence and independent operating check establish the practical operating range for these assumptions.
-
-Equilibrium resistance calibration describes uniformly heated metal. Operating resistance instead integrates temperature-dependent resistivity along the active path. The observer estimates an effective temperature consistent with that resistance and the thermal model; a narrow section or nonuniform thermal contact can be hotter. Establish the operating ceiling on representative fabricated pixels under repeated pulses and intended mechanical contact.
-
-On a locally monotonic curve, relative resistance error $`\varepsilon_r`$ corresponds approximately to temperature uncertainty $`\delta T=\varepsilon_r/|d\ln R/dT|`$. At sensitivity 10 parts per million per kelvin, 0.025% resistance error corresponds to 25 K temperature uncertainty. Near a turning point, use the complete resistance table and thermal history.
-
-This specification supplies the calculations and calibration procedures. Timing, actuator parameters and temperature performance require measurement on the assembled system.
+The model has consistent physical units: power divided by heat capacity has units K/s; $`G(T-S)`$ has units W; the two heat-transfer rates have units s⁻¹; all three fitted coefficients are positive. The passive model cools toward ambient with power removed. The inferred $`T`$ is a resistance-related effective metal temperature, distinct from the spatial peak at a hotspot. The two-state description and finite correction window must explain the intended pulse history before their estimates are used to end pulses.
 
 ---
 
-# MacroTPP: circuit, calibration and operation
+# Foil pixel: circuit and calibration
 
-- **Purpose:** drive one tactile pixel; stop heating at an estimated temperature ceiling.
-- **Hardware:** Teensy 4.1, INA253EVM, MOSFET and two voltage dividers; adjustable 0–5 V supply, current below 5 A.
-- **Temperature reference:** equilibrium pyrometer readings paired with electrical resistance.
-- **Computation:** Teensy measures and controls; PC calibrates, fits and plots.
-- **Prerequisites:** approximately 1 Ω foil, active dimensions and alloy properties; assembled circuit, bench meter, oscilloscope and suitable pyrometer.
+- **This circuit drives one centimetre-scale thermopneumatic pixel.** Electrical pulses heat its foil; the resulting gas expansion moves the membrane. The controller regulates estimated foil temperature, while a separate displacement or force measurement checks tactile output.
+- **Voltage and current provide two useful measurements:** resistance $`R=V/I`$, which changes with temperature, and power $`P=VI`$, which drives the thermal model.
+- **The temperature estimate combines both.** A model predicts heating and cooling; a calibrated table identifies temperatures consistent with the measured resistance. The controller selects the temperature that best matches both. A second temperature records heat retained around the foil.
+- **Calibration supplies the missing physical scale.** Pyrometer measurements establish resistance versus temperature. A pulse sequence identifies heat-transfer coefficients; a different sequence checks the result.
+- **The selected hardware is one Teensy 4.1, INA253EVM A3 and CSD17305Q5A.** The PC prepares calibration and plots results; measurement and pulse termination run locally.
 
-![MacroTPP electrical circuit](../assets/figures/macro-circuit.png)
+![Foil-pixel electrical circuit](../assets/figures/macro-circuit.png)
 
-## 1. Circuit
+## 1. Connect power and measurement paths
 
-**Goal:** deliver controlled heating and measure voltage directly across the foil.
+**Purpose:** measure heat delivered to the foil separately from losses in the cables and switch.
 
-Connect supply positive → **foil → INA253 current path → CSD17305Q5A → supply negative**. Mount the MOSFET on an assembled copper carrier. Attach two power wires and **two separate voltage-sense wires at the foil pads**. Each sense wire feeds a 1 kΩ/1 kΩ divider; subtraction excludes cable, sensor and switch losses.
+1. Connect supply positive → foil → INA253 current path → MOSFET → supply negative.
+2. Attach two heavier power wires and **two separate sense wires at the foil pads**. Connect each sense wire to a 1 kΩ/1 kΩ divider.
+3. Power Teensy through USB and the current sensor from its 3.3 V regulator. Route heater current back to the supply separately from measurement-ground traces.
 
-USB powers Teensy; its regulator supplies **3.3 V** to the sensor. Analog inputs and control signals are not 5 V tolerant. Dividers halve terminal voltage. Join signal grounds at the power-stage reference; route heater current separately.
+Teensy’s inputs and outputs use **3.3 V**. The dividers reduce a 5 V terminal potential to approximately 2.5 V. Subtracting the two calibrated terminal potentials gives foil voltage without the cable, sensor or switch drops.
 
-For 1 Ω foil, 2, 3 and 4 V across it produce **4, 9 and 16 W**. Select voltage from minimum foil resistance, keeping current below 5 A and normal pulses within constant-voltage operation.
+For approximately 1 Ω foil, 2, 3 and 4 V **across the foil** produce 4, 9 and 16 W. Use an adjustable **0–5 V supply with current limited below 5 A**. Begin calibration at low voltage and raise it while watching measured foil current. Normal operating pulses should remain in constant-voltage operation.
 
-## 2. Calibration
+## 2. Calibrate the electrical readings
 
-**Goal:** establish electrical accuracy, the temperature scale and retained heating.
+**Purpose:** convert three ADC readings into foil voltage, current and resistance.
 
-1. **Voltage:** disconnect heater power; calibrate each input at two measured DC potentials. Check intermediate values and the small negative-terminal voltage during conduction.
-2. **Current:** use a stable 1 Ω power resistor and ammeter **in the INA253/MOSFET branch**. Calibrate at two positive currents; check intermediate current and warm operation. Remove the ammeter afterward.
-3. **Pulsed electrical check:** use final wiring. Measure resistance error, settling, turn-off delay, supply variation and effective series resistance. Measure off-current in a foil power lead; the sensor branch misses divider leakage.
-4. **Temperature:** use the same circuit under steady DC. Step supply voltage; record voltage, current and pyrometer temperature once electrical and temperature readings are stable within instrument repeatability. Include the resistance turning region and highest operating temperature; repeat during cooling. The optical spot must lie wholly on foil. Account for emissivity and reflections; check center and near-contact temperatures across the active heated path. Without spatial agreement within the calibration allowance, the result is a geometry-dependent resistance–spot-temperature relation, unsuitable as a material resistance–temperature curve.
-5. **Dynamics:** collect data from the specified pulse sequence, fit the thermal model and run the independent verification sequence in Appendix D. Check tactile displacement or force repeatability.
+Use the final electronics and cables. Initially replace the foil with a stable 1 Ω resistor whose continuous rating exceeds the calibration power $`I^2R`$.
 
-## 3. Operation
-
-**Goal:** execute finite, locally controlled pulse sequences.
-
-1. **Load inputs:** electrical gains/errors, $`R_0`$, resistance and heat-capacity cells, coefficient ranges, ceiling $`T_c`$, pulse duration $`t_p`$, global minimum capacity $`C_{\mathrm{global,min}}`$, full heating bound $`P_{\max}`$, turn-off allowance $`\tau_s`$, and maximum data age $`\tau_f`$. Keep separate state time and last-valid-measurement time.
-2. **Prepare the pulse:** finish pending reads; calculate both temperature ranges through the entire off interval, including turn-off settling. Fix original end $`t_0+t_p`$. Calculate the deadline below. In one short critical section, recheck that deadline, arm the timer and raise the gate; otherwise leave the gate low.
-3. **Process each settled reading:** calculate $`V_h=V_+-V_-`$ and $`I_h=I_s+V_-/D_-`$, with $`D_-\approx2000\,\Omega`$. Reject stale timestamps and invalid current/power intervals. Calculate normalized-resistance limits $`y^-=V_h^-/(I_h^+R_0^+)`$, $`y^+=V_h^+/(I_h^-R_0^-)`$. Execute the four temperature-endpoint updates in F1. Retain a cell only when $`Q_{\max}\ge y^-`$ and $`Q_{\min}\le y^+`$; intersect its temperature span with the calculated range. Keep associated surroundings ranges and every compatible branch.
-4. **Set the deadline:** with state time $`t_m`$, last valid reading $`t_v`$, and $`M=\max(T_{\rm high},S_{\rm high})`$ across retained states, use
+1. **Voltage channels:** disconnect heater power. Apply two measured DC potentials to each sense input. For ADC codes $`n_1,n_2`$ and reference voltages $`x_1,x_2`$, calculate
    ```math
-   t_{\rm stop}=\min\left[t_0+t_p,\ t_m+\frac{(T_c-M)C_{\mathrm{global,min}}}{P_{\max}}-\tau_s,\ t_v+\tau_f-\tau_s\right].
+   a=(x_2-x_1)/(n_2-n_1),\qquad b=x_1-an_1.
    ```
-   Lower the gate if this time has passed. On timeout, calibration-range error or measurement/model disagreement, lower it, preserve thermal state and disable subsequent pulses. Every stop records its actual gate-transition time.
+   Convert subsequent codes with $`x=an+b`$. Check an intermediate voltage and the small negative-terminal voltage present during conduction.
+2. **Current channel:** put a reference ammeter in the **INA253/MOSFET branch**. Apply two positive currents spanning operation and calculate its gain and offset with the same formula. Check an intermediate current and repeat after the board warms. Remove the ammeter afterward.
+3. **Switched-load check:** pulse the resistor. Record the time after switching at which reconstructed resistance settles, the channel delays, and the delay from a gate-off command to current cessation. Save the largest observed voltage/current errors together with reference-meter uncertainty.
+4. **Power check:** record supply-voltage extrema and $`(V_s-V)/I`$, where $`V_s`$ is supply voltage and $`V,I`$ refer to the foil. Measure residual off-current in a **foil power lead**, which includes divider leakage.
 
-After reset, enforce the cooling time established after the hottest allowed run. A cool foil reading alone does not establish that surrounding material has cooled. Initialize the first-reading expiry from pulse start; subsequently refresh it only after a valid settled measurement. USB work remains outside these calculations.
+For each settled electrical reading:
 
-## Appendix A. Assembly
+1. Acquire current together with the positive-terminal voltage, then with the negative-terminal voltage, then with the positive-terminal voltage again.
+2. Interpolate the two positive-terminal readings to the middle timestamp; use the current measured at that timestamp.
+3. Calculate
 
-**Goal:** specify connections.
+```math
+V=V_+-V_-,\qquad I=I_s+V_-/D,\qquad R=V/I,\qquad P=VI.
+```
 
-| Component | Configuration |
+Here $`I_s`$ is calibrated sensor-branch current and $`D`$ is the negative divider’s measured total resistance, nominally **2000 Ω**. Its small current passes through the foil but bypasses the sensor. The positive-divider current does not pass through the foil.
+
+## 3. Establish the temperature scale
+
+**Purpose:** attach an independently measured temperature to the resistance curve.
+
+Measure the active foil length, width and thickness; calculate mass $`m=\rho lwd`$ using alloy density $`\rho`$. Store heat capacity $`C(T)=m c_p(T)`$, where $`c_p(T)`$ is alloy specific heat. Keep uncertainty in thickness, active dimensions and material data with this table.
+
+1. Record calibration ambient temperature $`A_{\rm cal}`$ and foil resistance $`R_{\rm cal}`$ after equilibration.
+2. Hold the switch on at a low DC voltage. Once both electrical readings and pyrometer temperature remain stable within instrument repeatability, record $`V,I,T`$.
+3. Raise voltage in steps. Include points on both sides of each resistance turning point and at the highest intended calibration temperature. Repeat selected points during cooling.
+4. At each reference, check the center and ends of the active resistance-bearing region. The pyrometer spot must fit entirely on foil; apply its emissivity and reflected-radiation corrections.
+5. Calculate $`q_{\rm cal}(T)=V/(IR_{\rm cal})`$. Store the measured points, a piecewise-linear curve and electrical/temperature uncertainty.
+
+At operating ambient $`A`$, measure $`R_0`$ and use $`q(T)=q_{\rm cal}(T)/q_{\rm cal}(A)`$, so $`q(A)=1`$. The operating ambient must lie within the calibrated range.
+
+Only spatially consistent equilibrium points establish the material curve. If center and end temperatures differ beyond the calibration allowance, reduce the gradient or use a more uniform reference specimen. A total-resistance versus spot-temperature curve requires a separate interpretation and cannot replace the material calibration unchanged.
+
+## 4. Fit, check and operate
+
+**Purpose:** connect the calibrated circuit to useful temperature-controlled pulses.
+
+The controller estimates foil temperature $`T`$ and surroundings temperature $`S`$. Its three fitted coefficients describe heat transfer between them and cooling toward ambient $`A`$. Use the explicit fitting and update calculations in Temperature control.
+
+1. Load electrical calibration, $`R_0`$, resistance and heat-capacity tables, fitted coefficients and pulse limits. Start after the established cooldown, with $`T=S=A`$.
+2. Request a finite sequence of **fixed-amplitude pulses**, specifying temperature ceiling $`T_c`$, maximum duration and repetition interval.
+3. At every settled reading, calculate $`V,I,R,P`$. Predict $`T,S`$ with the thermal model, then score the 1 °C table entries near predicted $`T`$ against measured $`R/R_0`$. Stop if no group or separated groups of compatible temperatures remain. For one group, select the lowest-cost candidate, also scoring the continuous prediction to preserve changes smaller than a grid step.
+4. End heating when $`\max(T,S)+M`$ reaches $`T_c`$. Here $`M`$ is an experimentally checked temperature allowance. The local timer also enforces maximum duration, measurement expiry and the predicted rise before switch-off. Continue calculating cooling for both states between pulses.
+5. Run the independent sequence without refitting. Compare temperature with a pyrometer trace where its response resolves the pulse; record resistance residuals and displacement or force separately. Resistance agreement checks electrical/model consistency; it does not establish temperature error.
+
+After a processor reset, keep power disabled for the cooldown measured after the hottest permitted run. This establishes the initial thermal state for the next sequence.
+
+## Appendix A. Components and pins
+
+| Item | Selected configuration |
 |---|---|
-| Teensy 4.1 | USB power; 3.3 V sensor supply/signals |
-| INA253EVM A3 | REF1/REF2 grounded; 0.4 V/A nominal; 100 nF supply bypass |
-| CSD17305Q5A | Copper carrier; source to supply negative |
+| Processor | Teensy 4.1; USB power |
+| Current sensor | INA253EVM **A3** section; 3.3 V; REF1/REF2 grounded; nominal 0.4 V/A |
+| Power switch | CSD17305Q5A on an assembled copper carrier; source to supply negative |
 | Gate | Pin 2 → 1 kΩ → gate; 100 kΩ gate-to-source |
-| Current | Sensor output → 100 Ω → pin 14/ADC0; 1 nF to ground |
+| Current output | Sensor → 100 Ω → pin 14/ADC0; 1 nF at ADC input to ground |
 | Positive terminal | 1 kΩ/1 kΩ divider → pin 26/ADC1; 1 nF midpoint-to-ground |
 | Negative terminal | Identical divider → pin 27/ADC1 |
-| Dividers | 0.1%, low temperature coefficient |
-| Supply | Adjustable 0–5 V; current limit below 5 A |
+| Divider resistors | 0.1%, low temperature coefficient |
+| Sensor bypass | 100 nF at supply pins |
+| Heater supply | Adjustable 0–5 V; current limit below 5 A |
 
-Power analog electronics before heater supply; disconnect heater power for rewiring.
-
-## Appendix B. Electrical software
-
-**Goal:** convert ADC codes into aligned foil measurements.
-
-### Algorithm B1. CalibrateElectrical — PC
-
-**Inputs:** two reference readings and corresponding mean ADC codes for each channel $`j\in\{+,-,s\}`$; intermediate/warm checks; reference and measurement-error allowances. Channels are positive-terminal voltage, negative-terminal voltage and sensor-branch current.
-
-1. **For each channel $`j`$:**
-   - Read reference values $`x_1,x_2`$ and ADC means $`c_1,c_2`$.
-   - **If** $`c_1=c_2`$, **stop**: calibration failed.
-   - Calculate $`a_j=(x_2-x_1)/(c_2-c_1)`$, $`b_j=x_1-a_jc_1`$.
-   - Convert each check code using $`x=a_jc+b_j`$.
-   - **If** a check exceeds its error allowance, **stop**: resolve the discrepancy.
-   - Store $`a_j,b_j`$, error allowance and calibrated channel delay.
-2. Store the measured negative-divider resistance interval $`[D_-^-,D_-^+]`$, nominally centered on **2000 Ω**.
-
-### Algorithm B2. ReadFoil — Teensy
-
-**Inputs:** B1 calibration, conversion timeout, settled-conduction flag and minimum calibrated current $`I_{\min}`$.
-
-1. **If** conduction has not settled, **return** current time and “no resistance reading,” with settled flag false.
-2. Acquire three paired readings: current with positive terminal; current with negative terminal; current with positive terminal. **If** a conversion times out or saturates, **return fault**.
-3. Convert codes using B1. Correct timestamps for calibrated channel delays. Set $`t_m`$ to the negative-terminal reading’s effective time.
-4. Interpolate the two bracketing positive-terminal readings to $`t_m`$. Likewise interpolate two current readings whose effective times bracket $`t_m`$:
-   ```math
-   \mathrm{interp}(x_a,x_b;t)=x_a+\frac{t-a}{b-a}(x_b-x_a).
-   ```
-   **If** either bracket is missing or crosses switching, **return fault**.
-5. Let the aligned values be $`V_+,V_-,I_s`$. Calculate
-   ```math
-   V_h=V_+-V_-,\qquad I_h=I_s+V_-/D_-,\qquad R_h=V_h/I_h.
-   ```
-   The added current passes through the foil but bypasses the sensor.
-6. Apply calibrated error limits, including residual interpolation error. With nonnegative terminal/current intervals, form
-   ```math
-   V_h^- =V_+^- -V_-^+,\quad V_h^+=V_+^+-V_-^-,
-   ```
-   ```math
-   I_h^-=I_s^-+\max(0,V_-^-)/D_-^+,\quad
-   I_h^+=I_s^++\max(0,V_-^+)/D_-^-.
-   ```
-   **If** $`V_h^-\le0`$ or $`I_h^-<I_{\min}`$, **return fault**.
-7. **Return** $`t_m,V_h,I_h,[V_h^-,V_h^+],[I_h^-,I_h^+]`$.
-
-## Appendix C. Temperature-table preparation
-
-**Goal:** preserve every resistance-compatible temperature, including different branches.
-
-### Algorithm C1. PrepareCells — PC
-
-**Inputs:** calibrated normalized resistance curves $`q_-(T),q_+(T)`$, including temperature-reference and interpolation uncertainty; heat-capacity curves $`C_-(T),C_+(T)`$ from active mass and alloy data.
-
-1. Divide the calibrated operating range into **1 °C cells**.
-2. **For each cell $`[T_i,T_{i+1}]`$:**
-   - Set $`Q_{\min}`$ to the minimum of $`q_-`$ within the cell.
-   - Set $`Q_{\max}`$ to the maximum of $`q_+`$ within the cell.
-   - Store the minimum of $`C_-`$ and maximum of $`C_+`$ within the cell.
-   - For piecewise-linear curves, evaluate cell endpoints and every enclosed curve knot; do not miss an internal turning point.
-3. Set $`C_{\mathrm{global,min}}`$ to the minimum stored heat capacity.
-4. **Return** the cell table and global minimum. Keep heat-capacity uncertainty separate from temperature dependence.
-
-Here $`q(T)=R(T)/R_0`$, with $`R_0`$ the measured reference resistance at ambient $`T_a`$. Heat capacity is in J/K; it is fixed from geometry/material information rather than fitted freely.
-
-## Appendix D. Thermal identification
-
-**Goal:** obtain thermal coefficients from the specified pulse sequence.
-
-Use foil temperature $`T`$, effective surroundings temperature $`S`$, and
-```math
-C(T)\dot T=P_h-G(T-S),\qquad
-\dot S=\beta(T-S)-\gamma(S-T_a).
-```
-$`G`$ is W/K; $`\beta,\gamma`$ are s$`^{-1}`$. All three coefficients are positive.
-
-### Algorithm D1. CollectPulseDataAndFit — PC and Teensy
-
-1. Choose checked duration $`t_p`$, onset interval $`T_r>t_p`$, and $`N=\min(10,N_q)`$, where $`N_q`$ is the checked pulse-count limit.
-2. Start after established cooling. Log timestamps, gate transitions, calibrated voltage/current, valid-reading flags, $`T_a`$ and $`R_0`$.
-3. Apply $`t_p/2`$, using $`t_p`$ if the shorter pulse supplies no settled reading; wait $`40T_r`$ after turn-off.
-4. Apply $`t_p`$; wait $`40T_r`$ after turn-off.
-5. Apply $`N`$ pulses of width $`t_p`$, starts separated by $`T_r`$.
-6. Wait $`2T_r`$ after the last turn-off; apply $`t_p`$. Wait $`20T_r`$ after turn-off; apply $`t_p`$.
-7. Set reference scales $`G_*=C(T_a)/t_p`$, $`\beta_*=1/T_r`$, $`\gamma_*=1/(20T_r)`$. Try all **27** starting combinations of factors 0.1, 1 and 10.
-8. **For each candidate vector $`z`$:** set $`(G,\beta,\gamma)=(G_*,\beta_*,\gamma_*)\exp z`$; integrate the model through every pulse and pause. At valid settled-on samples calculate $`r_k=[q(T(t_k))-R_h(t_k)/R_0]/s_k`$, where $`s_k>0`$ is normalized-resistance repeatability. Minimize $`\sum r_k^2`$; reject integration failure or temperature outside calibration.
-9. Refit under lower/upper capacity and channel-calibration alternatives, changing one calibration quantity throughout the trace and $`R_0`$ together. Include lower/upper switch-edge energy when unresolved. Tighten integration tolerances tenfold; require predicted normalized resistance to change by less than $`0.1\min s_k`$.
-10. **Profile each coefficient:** hold it fixed, refit the other two, and move upward/downward by factors of two for at most 20 steps. Stop at the first incompatible fit; bisect the final bracket until its ratio is below 1.05. If no incompatible point is found, mark that limit unresolved rather than treating the search endpoint as physical. Retain one or two coefficient sets.
-11. **Verify without refitting:** after established cooling, alternate widths $`t_p/2,t_p`$ for $`N`$ pulses at $`T_r`$; wait $`5T_r`$ after turn-off, then apply $`t_p`$. Save residuals and observer results. Resolve systematic disagreement before use; unresolved parameter limits require an additional informative restart measurement.
-
-Compare compatibility against full electrical and resistance-curve error bands. These fitted ranges are engineering estimates. Off intervals provide no resistance observations.
-
-## Appendix E. Electrical-energy bookkeeping
-
-**Goal:** account for heat delivered between observations.
-
-For supply interval $`[V_s^-,V_s^+]`$, effective series resistance $`R_s=(V_s-V_h)/I_h`$, and complete heater-resistance range $`[R_{\min},R_{\max}]`$, require $`R_{\min}>R_s^+\ge R_s^-\ge0`$. Settled-on power is bounded by
-```math
-P_{\rm on}^-=\frac{(V_s^-)^2R_{\max}}{(R_{\max}+R_s^+)^2},\qquad
-P_{\rm on}^+=\frac{(V_s^+)^2R_{\min}}{(R_{\min}+R_s^-)^2}.
-```
-Set $`P_{\rm switch}^+=V_{\max}^2/R_{\min}`$ and $`P_{\rm off}^+=R_{\max}I_{\rm off,max}^2`$. The voltage bound includes switching excursions; the off-current bound includes divider leakage.
-
-### Algorithm E1. EnergySegments — Teensy
-
-1. Split the requested time interval at every gate transition and measured settling boundary.
-2. **For each resulting segment of duration $`h`$:**
-   - **Settled on:** return $`[E^-,E^+]=[P_{\rm on}^-h,P_{\rm on}^+h]`$ and $`P=P_{\rm on}^+`$.
-   - **Switching/settling:** return $`[0,P_{\rm switch}^+h]`$ and $`P=P_{\rm switch}^+`$.
-   - **Settled off:** return $`[0,P_{\rm off}^+h]`$ and $`P=P_{\rm off}^+`$.
-3. Use these segments separately in F1. Sampled $`V_hI_h`$ gives nominal power; it does not narrow these between-reading bounds.
-
-## Appendix F. Thermal-state computation
-
-**Goal:** calculate temperature changes using heat capacity over the range reachable during each step.
-
-Store up to eight rectangles with fields $`T_{\rm low},T_{\rm high},S_{\rm low},S_{\rm high}`$, coefficient-set identifier and represented time. Superscripts $`-,+`$ below denote their low/high values.
-
-For scalar $`d`$, define
-```math
-p_-(a,d)=\min(a^-d,a^+d),\qquad p_+(a,d)=\max(a^-d,a^+d).
-```
-
-### Algorithm F1. AdvanceRange — Teensy
-
-**Inputs:** one rectangle, its coefficient ranges, one energy segment from E1.
-
-1. Subdivide the segment so that
-   ```math
-   h\le\min\{C_{\mathrm{global,min}}/G^+,\,1/(\beta^++\gamma^+)\}.
-   ```
-   Compute energy bounds separately for each substep.
-2. **For each substep, using its phase power bound $`P`$:**
-   ```math
-   \begin{aligned}
-   M&=\max(T^+-T_a,S^+-T_a)+Ph/C_{\mathrm{global,min}},\\
-   g_0&=G^+/C_{\mathrm{global,min}},\\
-   T_{\rm reach}^-&=\max(T_a,T^- -hg_0M),\\
-   T_{\rm reach}^+&=\min(T_a+M,\ T^++h[P/C_{\mathrm{global,min}}+g_0M]).
-   \end{aligned}
-   ```
-3. **If** this reachable interval leaves the calibrated table, **return fault**. Among all cells intersecting it, take the minimum capacity as $`C_{\min,\mathrm{step}}`$ and maximum as $`C_{\max,\mathrm{step}}`$.
-4. Set $`g^-=G^-/C_{\max,\mathrm{step}}`$, $`g^+=G^+/C_{\min,\mathrm{step}}`$, then calculate
-   ```math
-   \begin{aligned}
-   L_T&=P/C_{\min,\mathrm{step}}+g^+M,&L_S&=(\beta^++\gamma^+)M,\\
-   \epsilon_T&=\tfrac12g^+(L_T+L_S)h^2,&
-   \epsilon_S&=\tfrac12[\beta^+L_T+(\beta^++\gamma^+)L_S]h^2.
-   \end{aligned}
-   ```
-5. Using **old** endpoints throughout the right-hand sides, calculate
-   ```math
-   \begin{aligned}
-   T_{\rm new}^-&=T^-+E^-/C_{\max,\mathrm{step}}-h\,p_+(g,T^--S^-)-\epsilon_T,\\
-   T_{\rm new}^+&=T^++E^+/C_{\min,\mathrm{step}}-h\,p_-(g,T^+-S^+)+\epsilon_T,\\
-   S_{\rm new}^-&=S^-+h[p_-(\beta,T^--S^-)-\gamma^+(S^--T_a)]-\epsilon_S,\\
-   S_{\rm new}^+&=S^++h[p_+(\beta,T^+-S^+)-\gamma^-(S^+-T_a)]+\epsilon_S.
-   \end{aligned}
-   ```
-6. Replace lower endpoints below $`T_a`$ by $`T_a`$; store the four new endpoints and advance represented time.
-
-These calculations assume passive two-state dynamics, an enclosed initial state, and valid coefficient, capacity and electrical bounds. The $`\epsilon`$ terms account for integration error; they are not optional tuning gains.
-
-### Algorithm F2. RestrictRanges — Teensy
-
-1. From B2, calculate $`y^-=V_h^-/(I_h^+R_0^+)`$, $`y^+=V_h^+/(I_h^-R_0^-)`$.
-2. **For each predicted rectangle:** if its foil-temperature range exceeds the calibrated table, return a fault and preserve the original states.
-3. Scan overlapping cells. Skip cells with $`Q_{\max}<y^-`$ or $`Q_{\min}>y^+`$. For every other cell, intersect its span with $`[T^-,T^+]`$; combine adjacent intersections into a continuous run.
-4. **Whenever a run ends:** create a candidate with its temperature span, source surroundings range and coefficient-set identifier. If fewer than eight entries exist, append it. Otherwise, among the eight entries plus candidate, merge the nearest pair sharing a coefficient set into their enclosing temperature and surroundings ranges. Store the resulting eight entries. This keeps memory bounded during scanning.
-5. **If no candidates remain:** return a mismatch fault and preserve the predicted states. Otherwise return the retained ranges. Never discard a hotter alternative.
-
-## Appendix G. Pulse-control pseudocode
-
-**Goal:** enforce finite local deadlines independently of the PC.
-
-**Configuration:** ceiling $`T_c`$; maximum duration; $`C_{\mathrm{global,min}}`$; full heating-power bound $`P_{\max}>0`$; timer-dispatch plus physical turn-off bound $`\tau_s`$; maximum measurement age $`\tau_f>\tau_s`$. Preserve the original pulse-end time once a pulse begins.
-
-### Algorithm G1. SetDeadline — Teensy
-
-1. Let $`t_m`$ be state time, $`t_v`$ last-valid-measurement time, and $`M=\max(T^+,S^+)`$ across stored states.
-2. Calculate $`t_{\rm temperature}=t_m+(T_c-M)C_{\mathrm{global,min}}/P_{\max}-\tau_s`$.
-3. Set $`t_{\rm stop}=\min(t_{\rm original},t_{\rm temperature},t_v+\tau_f-\tau_s)`$.
-4. **If** the deadline has passed, call GateOff. Otherwise arm the gate-off timer. Return the deadline.
-
-### Algorithm G2. RunFiniteSequence — Teensy
-
-1. Require initialized temperatures, valid calibration and no unresolved fault. Load the finite count and scheduled onsets. Initialize temperatures only after established cooling.
-2. **Before each pulse:** require gate low, elapsed repetition interval and remaining count. Finish or discard pending reads. Snapshot $`t_0=\text{now}`$; update all states through off time to $`t_0`$, including physical turn-off and settling, using E1/F1. Set state time to that update's end.
-3. Fix $`t_{\rm original}=t_0+\min(t_p,t_{\rm configured,max})`$. Set $`t_v=t_0`$ for first-reading grace and calculate G1.
-4. **Briefly prevent timer interrupts:** recheck $`t_{\rm stop}>\text{now}`$; only then arm the timer, raise the gate and record actual transition time. Restore interrupts. If the gate remained low, stop the sequence.
-5. **For each completed measurement:**
-   - On timeout/channel failure, call GateOff, preserve state and disable subsequent pulses.
-   - If its time is no later than stored state time, discard it; never refresh data expiry.
-   - Use E1/F1 to update all states to the reading time; store that time even when resistance is unavailable.
-   - **Only if settled on:** require nonsaturated inputs and current lower limit at least $`I_{\min}`$; require measured power $`[V_h^-I_h^-,V_h^+I_h^+]`$ to overlap configured $`[P_{\rm on}^-,P_{\rm on}^+]`$. On either failure, stop and disable subsequent pulses.
-   - **Only if settled on:** call F2. On fault, preserve predicted state and stop. Otherwise store its result and refresh $`t_v`$.
-   - If the gate remains high, call G1. Preserve the original pulse end.
-6. **While off:** finish or discard pending reads, update states through all elapsed energy phases to a captured end time, and store that time. Retain both temperatures; transfer buffered logs when time permits.
-7. **Timer interrupt:** call GateOff at its deadline.
-
-**GateOff:** lower the gate; log its actual transition once. Fault paths also disable further requests until the cause is resolved and the initial thermal condition is re-established. After reset, enforce the established cooldown.
+The miniature MOSFET needs a soldered current/thermal pad and copper area. Assemble it on a carrier or PCB with accessible supply, foil and test terminals. Power the analog circuitry before enabling heater power.
 
 ---
 
-# Wire TPP array — circuit and temperature control
+# Wire array: circuit and calibration
 
-- Build **32 channels as four identical eight-pixel boards**, each controlled by one Teensy 4.1.
-- Give every heater an independent switch and current sensor; share voltage measurement across each board.
-- Keep the tactile array passive, with the electronics **at least 10 cm away** and separate voltage-sense connections at the heater pads.
-- Use one batch resistance–temperature calibration, each pixel's room-temperature resistance, and local pulse deadlines.
+- **Repeat one independently controlled heater channel eight times per board.** Four identical boards serve 32 pixels. Every pixel has its own MOSFET, shunt and current amplifier.
+- **Share voltage measurement within each board.** Two selectors connect the chosen pixel’s terminal-sense wires to one difference amplifier. The other pixels can continue heating during that measurement.
+- **Keep the tactile array passive.** Place sensing and switching electronics in the housing, at least 10 cm from the pixels; run separate power and voltage-sense conductors to the heater pads.
+- **Use the same temperature-estimation calculation for every pixel.** Each channel supplies measured voltage/current and its own room-temperature resistance. Pixels from one wire batch share the calibrated material curve.
+- **Complete one eight-channel board first.** Its concurrent-load measurements establish supply droop, sensing error and delay to switch-off before the design is duplicated.
 
-## 1. Circuit
+![One wire-heater channel](../assets/figures/array-channel-circuit.png)
 
-**Goal:** measure each heater's electrical resistance while controlling its heating pulses independently.
+![Shared voltage measurement for eight channels](../assets/figures/array-shared-circuit.png)
 
-![One heater channel, repeated eight times per board](../assets/figures/array-channel-circuit.png)
+## 1. Build the repeated channel
 
-![Shared voltage measurement and Teensy connections](../assets/figures/array-shared-circuit.png)
+**Purpose:** control each heater independently while measuring its electrical input.
 
-*Electrical schematic in two sheets; component placement and PCB routing are separate layout steps.*
+1. Connect supply positive → heater → **0.100 Ω shunt → AO3400A → supply negative**. Place the shunt and switch on the electronics board.
+2. Run two short, separate traces from the shunt pads to INA190A2 inputs. Its gain of 50 gives a nominal current sensitivity of **5 V/A**.
+3. Connect each heater terminal to a 3 kΩ/1 kΩ divider. Connect the divider midpoints through the TMUX1108 pair to the shared AD8276, as shown above.
 
-Each channel uses an **AO3400A**, **0.100 Ω shunt** and **INA190A2**. Two selectors and one **AD8276** measure the voltage across the selected heater. The other heaters continue operating during selection. Separate sense connections exclude power-cable and contact voltage drops from heater-voltage measurement.
+At 0.47 A, the current output is approximately **2.35 V** and the shunt dissipates **22 mW**. Set the initial total heater-current ceiling to **0.55 A**, including sensing-network current that bypasses the shunt.
 
-At **0.47 A through the shunt**, the current amplifier outputs **2.35 V** and the shunt dissipates **22 mW**. Set the initial heater-current ceiling to **0.55 A**, including current that bypasses the shunt through the voltage-sensing network.
+The selectors choose both terminals of the same pixel; the AD8276 subtracts them. The rail remains below 10 V and the analog circuitry uses 3.3 V.
 
-## 2. Power and local control
+For each group of eight pixels, provide **25 functional conductors:** one common positive feed, eight individual returns and sixteen voltage-sense connections. Begin the sense connections at the heater pads. Rate the common feed and connector for at least the intended 4.4 A eight-channel ceiling.
 
-**Goal:** supply concurrent pixels and stop each pulse from its local temperature estimate.
+## 2. Supply concurrent pulses
 
-A **12.5 Ω heater at 2.8 W** draws approximately **0.47 A at 5.9 V**. Eight simultaneous heaters draw about **3.8 A**; 32 require about **15 A and 90 W instantaneous heater power**. At 20% duty, mean heater power is approximately **18 W**. Set the rail above the required heater voltage by the measured cable, shunt and switch drops, within the circuit's voltage range. Size the supply for concurrent loads or limit simultaneous heating.
+**Purpose:** maintain the selected heater voltage when several pixels turn on together.
 
-The PC loads calibration and run settings, then collects logs. Each Teensy scans its eight channels and enforces pulse deadlines locally. A wired start signal can coordinate boards. Measure the complete delay from sampling through computation to switch turn-off and include it in the deadline calculation.
-
-The thermal model tracks heater temperature $`T`$ and surrounding-material temperature $`S`$:
-
-```math
-C(T)\dot T=P-G(T-S),\qquad
-\dot S=\beta(T-S)-\gamma(S-T_a).
-```
-
-Here $`P`$ is heater power, $`C`$ its heat capacity, $`T_a`$ ambient temperature, and $`G,\beta,\gamma`$ fitted heat-transfer coefficients. Retain both states between pulses. Resistance measurements narrow predicted temperature ranges using the batch calibration; retain all compatible branches when the curve is nonmonotonic. Set the next cutoff from the highest remaining heater or surrounding temperature, the minimum heat capacity and maximum possible heater power.
-
-## 3. Measurement and calibration
-
-**Goal:** obtain heater resistance with explicit electrical uncertainty.
-
-Calibrate each current path at two positive currents, measuring the reference current in the **shunt/MOSFET branch**, and check an intermediate value. Fit $`I_s=a_I n_I+c_I`$, where $`n_I`$ is the ADC reading. Calibrate the complete voltage path similarly as $`V_h=a_V n_V+c_V`$, including dividers, selectors and AD8276 loading. Check error over the installed common-mode voltage and concurrent-load range.
-
-Heater current includes sensing-network current that bypasses the shunt:
+A 12.5 Ω heater at 2.8 W requires
 
 ```math
-I_h\in[I_s^-+b^-,\ I_s^++b^+],\qquad
-R_h\in\left[\frac{V_h^-}{I_h^+},\frac{V_h^+}{I_h^-}\right],\quad I_h^->0.
+I=\sqrt{2.8/12.5}\approx0.47\ {\rm A},\qquad V=IR\approx5.9\ {\rm V}.
 ```
 
-The interval $`[b^-,b^+]`$ bounds this additional, signed current. With only the 3 kΩ/1 kΩ return divider connected, it is approximately $`V_-/4000`$, where $`V_-`$ is the heater's negative-terminal voltage. The selected AD8276 path adds loading. During the resistor-load checkout, compare a reference measurement in the **heater lead, before the sensing branch**, with calibrated shunt current; retain a range covering selector states, concurrent loads, circuit warming and reference-meter error. Include residual settling error in the voltage and current intervals.
+Eight such heaters use approximately **3.8 A**; 32 use approximately **15 A and 90 W of instantaneous heater power**. At 20% duty, mean heater power is approximately 18 W. The supply and conductors must support the concurrent current even when average power is much lower.
 
-Use settled ON readings for resistance. During switching and OFF periods, propagate the thermal states with the corresponding power bounds. Preserve sample timestamps; stop heating on stale data, a missed acquisition deadline, or disagreement between settled measurements and the calibrated electrical range.
+1. Connect eight stable 12–13 Ω resistor loads rated for the calibration power.
+2. Increase the rail while measuring voltage at each load’s sense terminals. Record rail voltage, heater voltage and current with one, several and all eight loads on.
+3. Select a rail setting that supplies the intended heater voltage without exceeding any channel’s current ceiling.
+4. Repeat with the intended pulse pattern. Record the minimum/maximum rail voltage and the largest measurement error after simultaneous switching.
+5. Use those extrema in the controller configuration. A pulse request exceeding the checked concurrent-load condition must reduce concurrency or drive amplitude.
 
-## Appendix A — bill of materials
+## 3. Calibrate current and voltage
 
-### Per-pixel parts
+**Purpose:** calculate actual heater resistance rather than the resistance of the complete power path.
 
-| Item | Selected part/configuration |
-|---|---|
-| Current amplifier | **INA190A2DCKR**, SC70-6, gain 50, 3.3 V, REF grounded |
-| Shunt | **Vishay WSLP0805R1000FEA**, 0.100 Ω, 1%, 0.5 W; calibrate installed value |
-| Heater MOSFET | **AO3400A** |
-| Gate components | **1 kΩ** series; **100 kΩ** gate-to-source |
-| Voltage scaling | Two **3.00 kΩ/1.00 kΩ** divider pairs, 0.1%, preferably ≤25 ppm/K; heater rail below 10 V |
-| Filtering | **1 nF** per divider midpoint; current output **100 Ω/1 nF** |
-| Supply bypass | **100 nF** at the current amplifier |
+1. For each channel, measure two positive reference currents with the ammeter in the **shunt/MOSFET branch**. Record ADC codes $`n_1,n_2`$ and reference currents $`x_1,x_2`$.
+2. Calculate $`a=(x_2-x_1)/(n_2-n_1)`$, $`b_0=x_1-an_1`$; convert subsequent codes using $`x=an+b_0`$. Check a third current and repeat after warming the board.
+3. Apply two measured differential voltages through the actual sense connections and selected front end. Calculate voltage gain and offset with the same formula. Check a third value, the installed terminal common-mode voltage, and changes caused by neighboring channels.
 
-### Complete system
+The heater current is
 
-| Part/function | Eight-pixel board | 32-pixel system |
-|---|---:|---:|
-| Teensy 4.1 | 1 | 4 |
-| INA190A2DCKR | 8 | 32 |
-| 0.100 Ω WSLP0805 shunt | 8 | 32 |
-| AO3400A + gate resistor + pull-down | 8 sets | 32 sets |
-| TMUX1108PWR | 2 | 8 |
-| AD8276BRZ | 1 | 4 |
-| 3.00 kΩ/1.00 kΩ divider pairs | 16 pairs | 64 pairs |
-| Divider 1 nF capacitors | 16 | 64 |
-| Current-output 100 Ω/1 nF filters | 8 | 32 |
-| Voltage-output 100 Ω/100 pF filter | 1 | 4 |
-| Analog-IC 100 nF bypass capacitors | 11 | 44 |
-| Selector-enable 10 kΩ pull-down | 1 | 4 |
-
-Provide supply protection, a physical supply disconnect, USB connections and power connectors rated for concurrent loads. Join Teensy ground to supply negative; route heater current separately from measurement ground. Keep analog circuits powered whenever the heater rail is enabled. Size bulk capacitance from measured pulse-induced rail droop.
-
-## Appendix B — connections and pin map
-
-### One channel, repeated eight times
-
-```text
-Common supply+ → power lead → heater i → individual return → 0.100 Ω → AO3400A drain
-                                                                        source → ground
-                                             INA190 IN+ ─┘       └─ IN−
-                                             INA190 OUT → Teensy current input i
-
-Heater i sense+ → terminal divider → positive-voltage selector input i
-Heater i sense− → terminal divider → negative-voltage selector input i
-Selected terminal pair → shared AD8276 difference amplifier → Teensy voltage input
+```math
+I=I_s+b,\qquad R=V/I,\qquad P=VI.
 ```
 
-Place the shunt between the heater return and MOSFET drain. Route separate traces from its pads to INA190 IN+ and IN−. DCK pins are **1 REF, 2 GND, 3 VS, 4 IN+, 5 IN−, 6 OUT**. The amplifier operates continuously. Its ±15 µV maximum offset corresponds to ±0.15 mA before calibration.
+Here $`b`$ is **signed net sensing-network current bypassing the shunt**. The bare negative-terminal divider contributes approximately $`V_-/4000`$; loading by the connected difference amplifier can change its magnitude and sign.
 
-Both **TMUX1108PWR** selectors use 3.3 V, shared address/enable lines, and VSS and GND connected to common ground. **Enable HIGH connects; LOW disconnects.** Add the 10 kΩ enable pull-down.
+1. Measure total current in the **heater lead before the sensing branch**.
+2. Subtract the calibrated shunt-branch current to obtain $`b`$.
+3. Repeat with each selector position, intended neighboring loads and a warm board.
+4. Store a correction and an error range covering those readings and reference-meter uncertainty. If the difference is below the meter’s resolution, include that resolution in the error range.
+5. Measure off-current in the heater lead and store its upper bound.
 
-Connect the selected positive divider to **AD8276BRZ pin 3**, negative to **pin 2**; **pin 7** to 3.3 V, **pin 4 and REF pin 1** to ground, **SENSE pin 5** to **OUT pin 6**. OUT feeds **100 Ω with 100 pF at the ADC**. Check the complete voltage path over **0.20–2.50 V output**, approximately 0.8–10 V heater voltage after calibration, including recovery from zero-output saturation. Use the measured settling time after selection or a switching edge.
+Pulse the resistor loads using the final cable and scan order. Record selection-to-settled-reading time, relative voltage/current delay, and measurement-to-current-off delay. Use only settled conducting readings for $`V/I`$.
 
-| Function | Teensy 4.1 pins |
+## 4. Apply the single-channel controller
+
+**Purpose:** repeat one calculation without coupling the pixels’ power commands.
+
+Use Temperature control separately for each channel. Store each pixel’s electrical calibration and resistance $`R_0`$ at ambient temperature $`A`$; load the same-batch curve from the wire-temperature fixture, rescaled so $`q(A)=1`$. Each channel retains its own heater temperature $`T`$ and surroundings temperature $`S`$.
+
+For each active channel:
+
+1. Select its two voltage terminals and wait the measured settling time.
+2. Read its current and selected voltage; align their timestamps and calculate corrected $`I,V,R,P`$.
+3. Predict that channel’s $`T,S`$, then score the 1 °C temperature-table entries against the prediction and measured $`R/R_0`$. Stop on mismatch or separated compatible groups. For one group, select the lowest-cost candidate, also scoring the continuous prediction to preserve changes smaller than a grid step.
+4. End its fixed-amplitude pulse when $`\max(T,S)+M`$ reaches the requested temperature ceiling. Update its timer deadline for the remaining temperature allowance, maximum duration and measurement expiry.
+5. Retain its thermal state after switch-off. Record channel, timestamp, measurements and stopping reason.
+
+The board timer serves the earliest active deadline. A measurement fault stops the affected operation and blocks further requests until corrected. The PC sends settings and finite sequences; local timing remains independent of PC communication. Until a resolved independent temperature reference checks $`M`$, it is an engineering stopping allowance rather than a measured temperature-error limit.
+
+## 5. Check the assembled pixels
+
+**Purpose:** verify both the measurement and the resulting tactile output under the intended conditions.
+
+1. Check array continuity and connector orientation before installing the wire. Keep the common heater feed isolated from any conflicting ground connection.
+2. Record each assembled pixel’s ambient resistance. Compare it with its wire length and with other pixels of the same geometry; inspect unusually large differences.
+3. Run the fitting sequence on a representative pixel. Give **every finished pixel** the separate fixed-model operating check; refit only pixels for which that check fails.
+4. Repeat the operating check with intended neighboring-pixel activity and mechanical contact.
+5. Measure displacement or force as well as resistance. Record the pulse amplitude, repetition rate and load condition associated with repeatable useful output. Resistance residuals test electrical/model consistency; a temperature-error claim additionally requires an independent temperature reference that resolves the transient.
+
+## Appendix A. Parts
+
+| Per pixel | Selection |
 |---|---|
-| Eight current outputs, ADC0 | **14–21** |
-| Shared differential-voltage output, ADC1 | **26** |
-| Eight heater gates | **2–9** |
-| Selector address A0/A1/A2 | **10/11/12** |
-| Selector enable | **13** |
-| Common start / external stop | Reserve **0/1**, with defined default levels |
+| Current amplifier | INA190A2DCKR, SC70-6; 3.3 V; REF grounded |
+| Shunt | Vishay WSLP0805R1000FEA, 0.100 Ω, 1%, 0.5 W |
+| Switch | AO3400A |
+| Gate components | 1 kΩ series; 100 kΩ gate-to-source |
+| Terminal dividers | Two 3.00 kΩ/1.00 kΩ pairs, 0.1%, low temperature coefficient |
+| Filters | 1 nF per divider; current output 100 Ω/1 nF |
+| Supply bypass | 100 nF at current amplifier |
 
-Use the Teensy ADC library's synchronized read functions for the current/voltage pair. Measure the residual timing difference and analog-path delays with the installed filters and cables.
+| Per eight-channel board | Quantity |
+|---|---:|
+| Teensy 4.1 | 1 |
+| Pixel circuits above | 8 |
+| TMUX1108PWR | 2 |
+| AD8276BRZ | 1 |
+| Shared-voltage output filter | 100 Ω/100 pF |
+| Shared-IC supply bypasses | Three 100 nF capacitors |
+| Shared selector-enable pull-down | 10 kΩ |
 
-## Appendix C — cable layout and fabrication
+Provide a physical supply disconnect, supply protection and connectors rated for concurrent current. Place shunts/amplifiers away from switch heating; route power current separately from measurement ground.
 
-- **25 functional conductors per eight pixels:** one positive feed, eight returns and sixteen sense connections. Start sense traces at the heater pads.
-- Rate the common feed and connector for **4.4 A** at the eight-channel ceiling.
-- An **18-conductor version** uses one feed, eight returns, eight negative senses and one shared positive sense. Include measured positive-bus variation under concurrent loads in its voltage uncertainty.
-- At a representative 6 V rail, a 4 kΩ return divider produces approximately **30 µW** of off-state heating in a 12.5 Ω heater. Include additional front-end leakage in the OFF-power bound.
+## Appendix B. Connections
 
-1. Fabricate the existing laboratory geometry from its digital CAD. Preserve cavities, wire threading and heater pads; add terminal-sense traces and verify connector orientation. Export manufacturing files through the established laboratory process.
-2. Check the shared-bus netlist. An isolated resistive bus can serve as the positive feed; remove any conflicting ground connection before use.
-3. Build one eight-channel electronics board with supply, current, voltage and gate test points. Separate power and measurement routing and keep shunts/amplifiers away from switch heating.
-4. Check eight stable resistor loads using the final cables and selector sequence. Record electrical errors, bypass-current bounds, neighboring-channel effects and total cutoff delay under concurrent loads.
-5. Obtain one same-batch resistance–temperature curve; measure each pixel's room-temperature resistance and check representative assembled pixels for baseline changes. Load channel calibration, curve identity and pulse limits into the common firmware, then duplicate the board.
+**INA190A2 DCK:** pin 1 REF, 2 GND, 3 VS, 4 IN+, 5 IN−, 6 OUT.
 
-## Appendix D — measurement procedure
+Both TMUX1108 selectors use 3.3 V, common address/enable lines, and grounded VSS/GND. Enable HIGH connects the selected inputs; LOW disconnects them.
+
+**AD8276BRZ:** selected positive divider to pin 3; negative divider to pin 2; pin 7 to 3.3 V; pin 4 and REF pin 1 to ground; SENSE pin 5 to OUT pin 6. OUT feeds 100 Ω with 100 pF at the ADC. Check the selected voltage path over approximately 0.20–2.50 V output and its recovery from zero-output saturation.
+
+| Function | Teensy pins |
+|---|---|
+| Eight current outputs, ADC0 | 14–21 |
+| Selected differential voltage, ADC1 | 26 |
+| Eight heater gates | 2–9 |
+| Selector A0/A1/A2 | 10/11/12 |
+| Selector enable | 13 |
+| Common start / external stop | Reserve 0/1 with defined default levels |
+
+---
+
+# Wire-temperature reference
+
+- **Measure same-stock spare wire at known temperatures.** The resulting resistance–temperature curve supplies the material reference used by the active pixel’s controller.
+- **Heat the specimen in a closed kiln.** An adjacent probe measures temperature while a bench meter measures resistance through permanently connected leads.
+- **Use a long specimen.** A 1–2 m winding of approximately 31 µm NiCr has about 1.4–2.9 kΩ resistance; thick leads then add a small, measurable correction.
+- **Keep the nonmonotonic shape.** Place references around each turning point and repeat selected points during cooling.
+- **Keep material and actuator measurements separate.** Each finished pixel also needs its own ambient resistance and operating check.
+
+![Closed-kiln wire-temperature fixture](../assets/figures/wire-calibration.png)
+
+## 1. Assemble the reference specimen
+
+**Purpose:** place the complete resistance-bearing length in a nearly uniform temperature field.
+
+1. Wind **1–2 m of same-stock wire** in one noncrossing layer around a **20 mm outside-diameter alumina tube**. At 0.5 mm pitch, 16–32 turns occupy 8–16 mm. Leave expansion slack and support the ends separately.
+2. Put the winding in a loosely covered alumina boat near the kiln center; place the reference probe beside it.
+3. Connect two approximately **0.5 mm NiCr leads** using isolated high-temperature compression contacts on ceramic. Separate the leads with ceramic bores or beads through the hot zone.
+4. Install leads and probe through **manufacturer-supported access** before heating. Keep the kiln closed during every reading.
+
+Select the kiln and supported feedthrough arrangement together. A vent opening alone does not establish that electrical leads can safely pass through it.
+
+## 2. Check the electrical measurement
+
+**Purpose:** quantify lead and contact errors before interpreting the wire’s resistance.
+
+Representative NiCr80 resistivity gives approximately **1440 Ω/m** for 31 µm wire. A total of 0.6 m of 0.5 mm NiCr leads adds approximately **3.3 Ω**. A 7% change in that lead resistance is 0.23 Ω, or **0.016%** of a one-metre specimen. Use measured lead resistance and the actual lead alloy’s thermal variation in the calculation.
+
+1. Before attaching the fine wire, join the hot-end contacts and measure total lead/contact resistance at ambient.
+2. Attach the specimen. Record resistance and check connection stability while gently moving the external leads.
+3. Record the meter’s measuring current. At 100 µA, a 1440 Ω specimen dissipates approximately **14 µW**.
+4. At one steady kiln temperature, repeat the reading with a second small measurement current. Resolve any reproducible resistance shift from self-heating or range error before continuing.
+5. Save meter uncertainty, lead correction and connection variation separately.
+
+A two-wire measurement is sufficient when these errors fit the required resolution. Locally, normalized-resistance uncertainty $`u_q`$ corresponds to $`u_T\approx u_q/|dq/dT|`$. At a resistance turning point, that local conversion fails; the controller uses the curve together with thermal history.
+
+## 3. Collect the temperature references
+
+**Purpose:** establish temperature scale, curve shape and repeatability with a small measurement set.
+
+1. At equilibrium, record calibration ambient $`A_{\rm cal}`$, total resistance and lead/contact correction.
+2. At one steady elevated temperature, compare probe readings beside the winding’s center and ends. Include the spatial spread with probe uncertainty.
+3. Step the kiln upward. Record a reference after temperature and resistance are stable within instrument repeatability.
+4. Begin with approximately five references: ambient, rising branch, observed extremum, falling branch and upper calibration temperature. For an 800 °C reference, kiln, probe, insulation and contacts must all cover that temperature.
+5. Add a point wherever another turning region or interpolation uncertainty remains unresolved.
+6. Repeat selected references on cooling, then measure final ambient resistance. Keep any baseline drift with the record.
+
+Equilibrium and a sufficiently uniform enclosure connect the adjacent probe reading to the winding temperature. Opening the door would replace that reference condition with an unknown cooling transient.
+
+## 4. Prepare the controller table
+
+**Purpose:** produce a reusable same-stock curve with traceable uncertainty.
+
+For each reference calculate
+
+```math
+q_{\rm cal}(T)=\frac{R_{\rm meas}(T)-R_{\rm leads}(T)}
+{R_{\rm meas}(A_{\rm cal})-R_{\rm leads}(A_{\rm cal})}.
+```
+
+1. Save temperature, measured resistance, lead correction, corrected resistance and $`q_{\rm cal}(T)`$.
+2. Add probe/spatial, meter, residual lead/contact and heating–cooling uncertainties.
+3. Sort by temperature and connect adjacent points with straight lines, retaining every observed extremum. Export the curve for the 1 °C lookup table in Temperature control.
+4. Measure each finished pixel’s $`R_0`$ at operating ambient $`A`$. Rescale the curve with $`q(T)=q_{\rm cal}(T)/q_{\rm cal}(A)`$, so $`q(A)=1`$; use $`R(T)=R_0q(T)`$. $`A`$ must lie within the calibrated range. Store the wire-stock identifier.
+
+This experiment establishes the equilibrium material curve. Pulse-response measurements test the assembled actuator’s thermal model; resistance agreement alone does not independently measure transient temperature error.
+
+## Appendix A. Equipment
+
+| Item | Configuration |
+|---|---|
+| Kiln | Programmable through the upper reference; supported lead/probe access |
+| Specimen and support | Same-stock wire; alumina tube and covered boat |
+| Leads and contacts | Thick NiCr, ceramic insulation, isolated high-temperature compression contacts |
+| Temperature instrument | Probe/thermometer with documented uncertainty over the reference range |
+| Resistance instrument | Bench meter with documented accuracy and measuring current |
+
+---
+
+# Student prototype: one temperature-limited foil pixel*
+
+*Proposed student implementation; not reviewed by Yon Visell.*
+
+- Build one foil-heater channel and end each fixed-voltage heating pulse from a resistance-assisted temperature estimate.
+- Track metal temperature $`T`$ and surrounding-material temperature $`S`$; retain both between pulses.
+- Begin with pulses that the available pyrometer resolves and that produce useful tactile displacement or force.
+- Fit three thermal coefficients on one sequence, then check the fixed controller on a different sequence.
+- Deliver a working pulse controller and recorded electrical, temperature and tactile-output results.
+
+## 1. Build one channel
+
+Use a Teensy 4.1, INA253EVM A3 current sensor, CSD17305Q5A switch and adjustable 0–5 V supply with current below 5 A. Connect supply positive → approximately 1 Ω foil → current sensor → switch → supply negative. Use a copper carrier for the switch.
+
+Attach separate voltage-sense wires at the foil pads. Each feeds a 1 kΩ/1 kΩ divider with 1 nF at its midpoint. The current output uses 100 Ω/1 nF. Connect the gate through 1 kΩ and add a 100 kΩ gate-to-source pull-down. Use 3.3 V sensor and controller signals. The pyrometer views the active foil; its spot must fit the target.
+
+## 2. Measure the inputs
+
+Complete these measurements before temperature-controlled pulses.
+
+1. **Electrical conversion:** use two known values per voltage/current channel, then check an intermediate value. For ADC code $`n`$, store $`x=an+b`$, with $`a=(x_2-x_1)/(n_2-n_1)`$, $`b=x_1-an_1`$. Calibrate sensor-branch current. Reconstruct heater quantities as $`V=V_+-V_-`$, $`I=I_s+V_-/2000`$ after settling.
+2. **Timing and power:** pulse a stable resistor. Record settling time, maximum heater power $`P_{\max}`$, turn-off delay and residual OFF power. Check the complete voltage/current sample cycle.
+3. **Temperature curve:** at settled temperature references, record resistance and pyrometer temperature. Include the intended working range and any resistance turning point. Use $`q(T)=R(T)/R_0`$, where $`R_0`$ is measured at ambient $`A`$. Normalize a previously measured stock curve by its value at $`A`$. Apply emissivity correction and compare center/end temperatures across the active foil; use a sufficiently uniform specimen for the material curve.
+4. **Heat capacity:** calculate active foil mass times alloy specific heat, $`C(T)=mc_p(T)`$. Store its minimum $`C_{\min}`$.
+5. **Useful pulse:** choose one fixed voltage and finite duration that give the desired tactile response within the independently observed temperature range. The pyrometer must resolve that pulse; check its response time and recorded trace before using it as a dynamic reference.
+
+Between adjacent calibration points use
+
+```math
+q(U)=q_j+(q_{j+1}-q_j)(U-T_j)/(T_{j+1}-T_j).
+```
+
+Precompute $`q(U)`$ at 1 °C spacing and the largest absolute segment slope $`L`$. The spacing sets numerical resolution. Record normalized-resistance error $`e_R>0`$ from electrical checks and curve uncertainty.
+
+## 3. Fit and set the stopping allowance
+
+Use fixed voltage, pulse width $`t_p`$ and start-to-start interval $`t_r>t_p`$. Record this fitting sequence:
+
+1. From ambient, apply one pulse; wait $`4t_r`$ after turn-off.
+2. Apply four pulses starting every $`t_r`$.
+3. Wait $`t_r`$ after the final turn-off; apply one pulse.
+4. Wait $`4t_r`$ after turn-off; apply one pulse.
+
+Fit positive $`G,\beta,\gamma`$ by replaying
+
+```math
+T_{\rm new}=T+\Delta t[P-G(T-S)]/C(T),\qquad
+S_{\rm new}=S+\Delta t[\beta(T-S)-\gamma(S-A)]
+```
+
+and minimizing $`\sum[q(T)-V/(IR_0)]^2`$. Use measured power during settled conduction, $`P_{\max}`$ during settling and measured OFF power. Keep the state through every pause; apply no resistance correction during fitting. A direct multiplicative search over the three coefficients is sufficient for the initial fit.
+
+Set search width $`w\ge1`$ K from the largest uncorrected-model temperature error on this record, adding reference uncertainty and one grid step. Replay the resistance-corrected observer below. Set stopping allowance $`M`$ from its largest temperature underestimation, plus reference uncertainty and one grid step. Freeze these values before the separate check.
+
+## 4. Run the local controller
+
+Initialize $`T=S=A`$ after cooling. Before a pulse, update the stored cooling state, fix its original end time and initialize the first-reading expiry. In one uninterrupted operation, check the deadline, arm the timer and enable the switch if the deadline is future. Use a clock step $`\Delta t\le0.1\min(C_{\min}/G,1/(\beta+\gamma))`$; divide longer gaps into such steps. Each update receives aligned voltage/current and its timestamp. Here $`T_c`$ is the temperature ceiling; `data_age` is the maximum permitted interval between valid readings. An invalid reading has timed out, saturated, or fallen below the calibrated current range.
 
 ```pseudocode
-At startup:
-    Set all heater gates LOW and selector enable LOW.
-    Load channel calibration, uncertainty and room-temperature resistance.
-    Initialize thermal states from ambient only after the established cooling time.
-Before each heating pulse:
-    Program a local switch-off deadline using the current temperature ranges.
-    Enable the requested heater only while that deadline remains valid.
-For each selected channel i:
-    Set selector address i and enable; wait the measured settling time.
-    Start startSynchronizedSingleRead(14+i, 26) and record acquisition times.
-    If conversion exceeds its timeout, switch off, record the fault and end this acquisition.
-    Read the pair with readSynchronizedSingle().
-    If its timestamp is no later than stored state time, switch off and discard this acquisition.
-    Advance both thermal states to the sample time using elapsed ON, edge and OFF intervals.
-    If the heater is OFF or still settling, skip the resistance update.
-    Otherwise:
-        Convert readings to calibrated shunt-current and heater-voltage intervals.
-        Add the bypass-current interval to obtain heater current.
-        Divide voltage by positive heater current, then normalize by room-temperature resistance.
-        Keep temperature cells compatible with both prediction and resistance.
-        Switch off if no state remains or prediction leaves the calibrated range.
-    Update the local deadline; retain thermal states after switch-off.
-    Log timestamps, raw readings, corrected current/voltage and temperature ranges.
-After a fault:
-    Disable further pulses until its cause is resolved and the initial thermal state is established.
+At each clock update:
+    if timestamp is stale or settled readings are invalid: switch OFF; return
+    dt = sample_time-state_time
+    P = average of previous and current V*I during settled conduction
+    use Pmax during settling; use measured OFF power while off
+    remaining = dt
+    while remaining > 0:
+        h = min(remaining,0.1*min(Cmin/G,1/(beta+gamma)))
+        Tnew = T + h*(P-G*(T-S))/C(T)
+        Snew = S + h*(beta*(T-S)-gamma*(S-A))
+        T = Tnew; S = Snew; state_time = state_time+h
+        remaining = remaining-h
+        if T is outside calibration: switch OFF; return
+    if switch is OFF: retain T,S; return
+    if reading is settled:
+        y = V/(I*R0); predicted = T
+        runs = 0; previous_pass = false; best_cost = infinity
+        for consecutive grid temperatures U within predicted ± w:
+            passes = abs(y-q[U]) <= eR + L*grid_step
+            if passes and not previous_pass: runs = runs+1
+            if passes:
+                cost = ((U-predicted)/w)^2 + ((y-q[U])/eR)^2
+                if cost < best_cost: best_cost = cost; best_T = U
+            previous_pass = passes
+        if runs != 1: switch OFF; return ambiguity_or_mismatch
+        q_pred = interpolate_q(predicted)
+        if abs(y-q_pred) <= eR + L*grid_step:
+            if ((y-q_pred)/eR)^2 <= best_cost: best_T = predicted
+        T = best_T; last_valid_time = sample_time
+    thermal_end = state_time + (Tc-M-max(T,S))*Cmin/Pmax - off_delay
+    deadline = min(thermal_end,original_end,last_valid_time+data_age-off_delay)
+    if deadline <= now: switch OFF
+    else: arm local timer for deadline
 ```
 
-## Appendix E — system diagram
+The table search follows the initialized thermal history. Multiple separated compatible runs stop the pulse. The continuous prediction is also a candidate, preserving small temperature rises where the curve is flat. Faults disable further pulses until resolved; reset requires the established cooldown.
 
-![Array system](../assets/figures/array-system.png)
+## 5. Check the result independently
 
----
+Keep coefficients and allowances fixed:
 
-# Wire-temperature calibration
+1. From ambient, apply four pulses of widths $`t_p/2,t_p,t_p/2,t_p`$, with starts separated by $`t_r`$.
+2. Wait $`2t_r`$ after the last turn-off; apply one pulse of width $`t_p`$.
+3. Use full-width pulses throughout if a half pulse supplies no settled reading.
+4. Record resistance, pyrometer temperature, estimated temperature, gate transitions and tactile output. Confirm that pulses end before the independently observed temperature exceeds the selected ceiling and that the chosen tactile response is useful and repeatable.
 
-- **Heat spare wire from the same batch in a small kiln.** Start with about five temperature references placed around the actual resistance curve.
-- **Measure with the kiln closed.** First confirm manufacturer-supported access for the insulated electrical leads and temperature probe.
-- **Use a 1–2 m winding and thicker leads.** Its approximately 1.4–2.9 kΩ resistance permits a two-wire measurement.
-- **Measure temperature beside the winding.** The active pixel requires no attached thermometer.
-- **Record the normalized resistance curve and its uncertainty.** An 800 °C reference extends calibration to that temperature; the operating limit is a separate design choice.
+This check establishes the tested pulse and load range. The estimate represents effective foil temperature; spatial hotspots and pulses faster than the reference instrument require different temperature evidence.
 
-![Closed-kiln wire-calibration fixture: a compact winding on an alumina tube, adjacent reference probe, and thick insulated leads to an external meter.](../assets/figures/wire-calibration.png)
+## Appendix: subsequent improvements
 
-## 1. Fixture and equipment
-
-**Goal:** hold the wire at a known, nearly uniform temperature while measuring resistance outside the closed kiln.
-
-Wind **1–2 m of approximately 31 µm NiCr wire** in one noncrossing layer around a **20 mm outside-diameter alumina tube**. A **0.5 mm pitch** gives **16–32 turns** spanning **8–16 mm**. Leave slack and support the ends separately. Place the tube in a loosely covered alumina boat near the kiln center, with the reference probe beside the winding.
-
-| Item | Selection |
-|---|---|
-| Kiln | Small programmable kiln rated for the upper calibration temperature, with manufacturer-supported electrical/probe feedthroughs. The TableTop Hi-Temp Burnout Kiln—PROGRAMMABLE is a candidate subject to confirmation of this access. |
-| Support | Approximately 20 mm alumina tube and small alumina boat/cover |
-| Electrical leads | Two approximately **0.5 mm NiCr leads**, insulated with separate ceramic bores or beads |
-| Hot connections | Two isolated compression contacts on ceramic, rated for the upper calibration temperature |
-| Temperature reference | Type K thermometer/probe rated for the range; **Fluke 80PK-22** is rated to 1090 °C. Keep its handle outside. |
-| Resistance measurement | Bench DMM with specified measuring current and accuracy on the selected resistance range |
-
-**Confirm the feedthrough arrangement with the kiln manufacturer before purchase or assembly.** A ventilation opening alone does not establish supported routing. Install the leads and probe using the approved arrangement, preserving insulation, ventilation and door closure.
-
-Wrap each wire end around a smooth post or thicker lead and secure it under a clean compression washer. Mount contacts separately on ceramic, provide strain relief, and check connection stability through the first heat cycle.
-
-## 2. Electrical measurement
-
-**Goal:** make lead resistance small compared with the heated wire resistance.
-
-Representative NiCr80 resistivity, $`1.09\times10^{-6}\ \Omega\,\mathrm m`$, gives approximately **1,440 Ω/m** at 31 µm diameter. A stable 1 Ω series contribution is **0.07%** of a one-metre winding.
-
-A total of **0.6 m of 0.5 mm NiCr leads contributes about 3.3 Ω**. A 7% change adds 0.23 Ω, or **0.016%** of the winding resistance. Measure and subtract the room-temperature lead resistance; include its temperature-dependent remainder in the uncertainty. Ultrafine leads of the same length would contribute about **866 Ω**.
-
-The kiln supplies heat and the meter supplies a small measuring current. Passing the pixel's approximate **0.47 A** through one metre would require
-
-```math
-V=IR\approx0.47\times1440\approx680\ \mathrm V.
-```
-
-The long winding therefore serves externally heated calibration. A measuring current near **100 µA** dissipates only **14 µW** in one metre.
-
-## 3. Temperature sweep
-
-**Goal:** obtain the few reference points that constrain the resistance curve and its extrema.
-
-1. **Connect at room temperature.** Record wire length, resistance and lead resistance. Check stability while gently moving the external leads.
-2. **Close the kiln.** Place the reference probe beside the winding. During initial setup, compare its center and ends at equilibrium and record the temperature spread.
-3. **Check measuring-current effects.** At one settled temperature, repeat with a second small current; include any detectable resistance change in the uncertainty or reduce current.
-4. **Collect about five equilibrium references:** room temperature, an informative rising-branch point, the observed resistance maximum, a falling-branch point and the upper calibration reference, provisionally **800 °C**. Follow the measured curve during the sweep and record each reference after temperature and resistance settle.
-5. **Add a point only where needed:** another extremum or an interpolation interval that limits control. Repeat selected references during cooling and record the final room-temperature resistance, including any baseline shift.
-
-Save temperature, meter reading, lead correction and normalized resistance:
-
-```math
-q(T)=\frac{R_{\mathrm{meas}}(T)-R_{\mathrm{leads}}(T)}
-{R_{\mathrm{meas}}(T_0)-R_{\mathrm{leads}}(T_0)},
-```
-
-where $`T_0`$ is the room-temperature reference. Store measurement and interpolation uncertainty separately. If the actual curve has several extrema, place additional references around those extrema.
-
-An initial **0.1% resistance-error allocation** is 0.05% meter, 0.02% residual lead effects and 0.03% connection/repeatability effects. Replace these allocations with measured or specified values. A **±5–10 °C** temperature-reference target combines probe uncertainty and spatial variation. The resulting temperature resolution also depends on the local resistance-curve slope.
-
-## 4. Interpretation
-
-**Goal:** distinguish an equilibrium resistance reference from temperature measurements during a pulse.
-
-**Opening the kiln before attaching clips changes the wire temperature.** A free 31 µm wire has an illustrative cooling time of **0.1–0.2 s** near 800 °C for convection of 100–300 W/(m² K) plus radiation. Its ceramic support can remain hot while the wire cools; contact conductance determines their temperature difference. Connect the meter before heating and read it with the kiln closed.
-
-**A series-connected foil does not establish the wire temperature.** At equal current, heating per exposed surface area scales as $`1/(A\mathcal P)`$, where $`A`$ is cross-sectional area and $`\mathcal P`$ exposed perimeter. A **15 µm-thick, 1 mm-wide foil receives about 414 times less heating per surface area** than a 31 µm wire. Length cancels from this interior heat balance; support and end losses further affect equilibrium.
-
-An unpowered foil can share the winding's temperature in a uniform enclosure, but optical measurement also requires sufficient target area, known emissivity and optical access. The adjacent reference probe measures the calibration temperature directly.
-
-The measured curve relates resistance to uniform equilibrium temperature. Applied to an assembled pixel, it supports an effective wire-temperature estimate together with thermal history. Local transient hotspots require independent measurements with adequate spatial and temporal resolution.
+After this single-channel result, extend pulse rate within available temperature-reference bandwidth, improve electrical precision if resistance error dominates, or repeat the same calculation for additional channels. Preserve the demonstrated operating settings while evaluating each change.

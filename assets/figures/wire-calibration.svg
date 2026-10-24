@@ -2,7 +2,7 @@
 <text x="55" y="58" font-size="34" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Wire temperature reference · measure with kiln closed</text>
 <text x="55" y="95" font-size="21" font-weight="400" text-anchor="start" fill="#607482" style="fill:#607482">Same-spool wire in thermal equilibrium; a nearby probe supplies the independent temperature.</text>
 <rect x="65" y="180" width="895" height="650" rx="20" fill="#e9eef1" stroke="#8fa2ad" stroke-width="1.5"/>
-<text x="104" y="226" font-size="26" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">SMALL VENTED KILN</text>
+<text x="104" y="226" font-size="26" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">CLOSED PROGRAMMABLE KILN</text>
 <rect x="132" y="280" width="745" height="470" rx="12" fill="#fff8ee" stroke="#d5b48e" stroke-width="1.5"/>
 <text x="170" y="325" font-size="23" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Covered alumina fixture</text>
 <rect x="230" y="500" width="505" height="169" rx="6" fill="#f6f4ee" stroke="#aaa69c" stroke-width="1.5"/>
@@ -36,7 +36,7 @@
 <path d="M250 417V480H307V500 M630 500V480H760V417" fill="none" stroke="#bc6a28" stroke-width="2.5" stroke-linejoin="round"/>
 <text x="490" y="387" font-size="21" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">Two isolated hot connections</text>
 <rect x="877" y="337" width="83" height="130" rx="2" fill="white" stroke="#8fa2ad" stroke-width="1.5"/>
-<text x="918" y="310" font-size="20" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">Vent</text>
+<text x="918" y="310" font-size="20" font-weight="700" text-anchor="middle" fill="#153345" style="fill:#153345">Lead/probe port</text>
 <path d="M250 417V355H1105 M760 417V395H1105" fill="none" stroke="#25806b" stroke-width="5" stroke-linejoin="round"/>
 <text x="1080" y="281" font-size="23" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Thick NiCr leads</text>
 <text x="1080" y="311" font-size="18" font-weight="400" text-anchor="start" fill="#153345" style="fill:#153345">Ceramic insulation in hot zone</text>
@@ -54,5 +54,5 @@
 <text x="1292" y="718" font-size="19" font-weight="400" text-anchor="middle" fill="#153345" style="fill:#153345">Probe handle outside</text>
 <text x="1105" y="809" font-size="20" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Kiln heats wire; meter measures R</text>
 <text x="65" y="891" font-size="26" font-weight="700" text-anchor="start" fill="#153345" style="fill:#153345">Connect before heating → close kiln → soak → record temperature and resistance</text>
-<text x="65" y="935" font-size="18" font-weight="400" text-anchor="start" fill="#607482" style="fill:#607482">Verify vent clearance and temperature uniformity. Fixture dimensions, connections and procedure: WireTemperature-Calibration.md</text>
+<text x="65" y="935" font-size="18" font-weight="400" text-anchor="start" fill="#607482" style="fill:#607482">Use manufacturer-supported lead/probe access. Keep the kiln closed for every reading.</text>
 </svg>
