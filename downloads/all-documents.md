@@ -12,12 +12,12 @@
 - **End each fixed-amplitude heating pulse at an estimated temperature ceiling or its requested duration.** This controls pulse termination; tactile displacement and force remain separate quantities to measure.
 - **Predict two temperatures: metal and surrounding material.** Electrical power heats the metal, while the surroundings retain heat between pulses. Three fitted heat-transfer coefficients describe this exchange.
 - **Correct the predicted metal temperature using measured resistance and the calibrated resistance–temperature curve.** The model carries the heating and cooling history; resistance supplies a new observation. A short table search balances their agreement.
-- **Check nonmonotonicity explicitly.** Search near the predicted temperature and stop when two distinct resistance-compatible branches remain. Where resistance changes little with temperature, the model supplies most of the estimate.
-- **Use a measured stopping allowance and a local timer.** The allowance covers observed underestimation; the timer accounts for further heating and switch delay. Fit on one experiment and check fixed settings on another. The result is an effective-temperature estimate with experimentally established operating scope.
+- **Handle a resistance value that corresponds to two temperatures.** Search near the predicted temperature and stop when two distinct compatible branches remain. Where resistance changes little with temperature, the model supplies most of the estimate.
+- **Use a measured stopping allowance and a local timer.** The allowance covers observed underestimation; the timer accounts for further heating and switch delay. Fit on one experiment and check fixed settings on another. The result is an effective-temperature estimate checked under the intended operating conditions.
 
 ## 1. One heater and its inputs
 
-One electrical measurement and the stored thermal state supply each control cycle.
+Voltage and current reveal both the electrical heat entering the metal and its resistance. Combining these readings with the heating history tells the controller when to end the pulse.
 
 ![Single-channel heating, measurement and temperature control](../assets/figures/single-channel-control.png)
 
@@ -45,11 +45,11 @@ UPDATE(t, T, S, average_power, V, I, settled_reading, heating)
     returns updated T, S, measurement_status and switch_off_deadline
 ```
 
-Before operation, supply electrical channel calibration, $`R_0`$, the measured $`q(T)`$ points, $`C(T)`$, fitted $`G,\beta,\gamma`$, and the limits used below. Calculate $`C(T)=m c_p(T)`$ from active-metal mass $`m`$ and alloy specific heat $`c_p`$. A measured material curve can serve pixels made from the same stock; each pixel needs its own $`R_0`$.
+Load the electrical calibration, resistance curve, heat capacity and fitted coefficients before operation. Calculate $`C(T)=m c_p(T)`$ from active-metal mass $`m`$ and alloy specific heat $`c_p`$. Pixels from the same stock can share the material curve; each needs its own ambient resistance $`R_0`$.
 
 ## 2. Predict heating and retained heat
 
-The thermal model predicts the next temperatures before the resistance reading is used.
+Predicting heating between resistance readings lets the controller respond before another measurement arrives and account for heat left by earlier pulses.
 
 Use
 
@@ -58,9 +58,13 @@ C(T)\frac{dT}{dt}=P-G(T-S),\qquad
 \frac{dS}{dt}=\beta(T-S)-\gamma(S-A).
 ```
 
-Electrical power heats the metal. The term $`G(T-S)`$ transfers heat between metal and surroundings. The second equation represents warming and cooling of the effective surrounding material. Its temperature $`S`$ persists during pauses, so two otherwise identical pulses can begin from different thermal conditions.
+The first equation subtracts heat leaving the metal from electrical heat entering it. Dividing that net power by heat capacity gives the temperature change per second.
 
-For a short interval, the prediction is
+- **Heat capacity** is the energy required to raise the metal temperature by one degree. A larger capacity gives a slower rise for the same power.
+- **Heat transfer** $`G(T-S)`$ grows with the temperature difference. It removes heat when the metal is hotter and returns heat when the surroundings are hotter.
+- **Retained heat** is represented by $`S`$. The second equation adds warming from the metal and subtracts cooling toward ambient. Keeping this state during pauses explains why identical pulses can reach different temperatures.
+
+Multiplying these rates by the elapsed time gives the prediction for one short interval:
 
 ```math
 T_{\rm pred}=T+\Delta t\frac{P-G(T-S)}{C(T)},\qquad
@@ -80,17 +84,17 @@ Initialize $`T=S=A`$ after the measured cooling period. Continue updating both t
 
 ## 3. Convert the resistance curve into a correction
 
-The calibrated curve relates candidate temperatures to resistance; the update compares those predictions with the measured resistance.
+Resistance adds temperature information to the power-based prediction, helping correct accumulated error before the controller decides whether heating can continue.
 
-For a stock curve measured at a different ambient, first normalize it at the operating ambient: $`q(T)=q_{\rm cal}(T)/q_{\rm cal}(A)`$. Then $`q(A)=1`$ matches the current pixel's measured $`R_0`$. Recalculate the normalized error allowance with this scaling and ambient/reference-resistance uncertainty. Store the resulting pairs $`(T_j,q_j)`$, ordered by temperature. Between adjacent points, use
+Normalize a stock curve at the operating ambient: $`q(T)=q_{\rm cal}(T)/q_{\rm cal}(A)`$. Then $`q(A)=1`$ matches the current pixel's measured $`R_0`$. Include this scaling and ambient/reference-resistance uncertainty in the error allowance. Order the resulting pairs $`(T_j,q_j)`$ by temperature and interpolate:
 
 ```math
 q(U)=q_j+\frac{q_{j+1}-q_j}{T_{j+1}-T_j}(U-T_j),
 ```
 
-where $`U`$ is a candidate temperature. Include points around each observed turning region. Interpolation represents the measured curve; its remaining error belongs in $`e_R`$.
+where $`U`$ is a candidate temperature. This draws a straight line between neighboring measured points. Place points around each turning region so the lines capture the change in direction; remaining interpolation error belongs in $`e_R`$.
 
-During settled conduction calculate
+Dividing voltage by current gives resistance; dividing again by its ambient value makes it comparable with the normalized calibration curve:
 
 ```math
 y=\frac{V}{I R_0}.
@@ -102,16 +106,16 @@ Prepare a table of $`q(U)`$ at **1 °C spacing**, using the interpolation above.
 |y-q(U)|\le e,\qquad e=e_R+L\,(1\ ^\circ\mathrm C).
 ```
 
-The second term allows for the grid and a window boundary between grid points. The 1 °C spacing is a numerical resolution, not a measurement accuracy. Require $`w\ge1`$ K. Consecutive passing grid indices form a continuous run. No run means disagreement between the electrical reading and the allowed correction. More than one separated run means that distinct local resistance branches remain. Either result ends the heating pulse.
+The second term allows for the grid and a window boundary between grid points. The 1 °C spacing is a numerical resolution, not a measurement accuracy. Require $`w\ge1`$ K. Neighboring passing temperatures form a connected group, called a run in the pseudocode. No run means disagreement between the electrical reading and the allowed correction. More than one separated run means that distinct local resistance branches remain. Either result ends the heating pulse.
 
-When one run remains, choose its temperature minimizing
+When one run remains, score each temperature for two kinds of disagreement: its distance from the prediction and the difference between its expected resistance and the measurement. Choose the lowest score:
 
 ```math
 J(U)=\left(\frac{U-T_{\rm pred}}{w}\right)^2+
 \left(\frac{y-q(U)}{e_R}\right)^2.
 ```
 
-Also evaluate $`J`$ at the continuous prediction $`T_{\rm pred}`$ itself, using interpolated resistance, if it passes the same resistance test. Select the lower-cost candidate; choose the continuous prediction on a tie. This preserves temperature changes smaller than a grid step. Set $`T`$ to the selected temperature and $`S=S_{\rm pred}`$. The calculation balances the prediction against resistance agreement. A flat $`q`$ gives nearly equal resistance scores; the first term then keeps the estimate near the prediction. A steep slope makes resistance more informative. The initialized thermal history selects the search region; resistance distinguishes temperatures within it.
+Also evaluate $`J`$ at the continuous prediction $`T_{\rm pred}`$ itself, using interpolated resistance, if it passes the same resistance test. Select the lower-cost candidate; choose the continuous prediction on a tie. This preserves temperature changes smaller than a grid step. Set $`T`$ to the selected temperature and $`S=S_{\rm pred}`$. Dividing by $`w`$ and $`e_R`$ puts the two disagreements on comparable scales. A flat $`q`$ gives nearly equal resistance scores, so the prediction dominates. A steep slope makes resistance more informative. The initialized thermal history selects the search region; resistance distinguishes temperatures within it.
 
 **Set two fixed correction settings:**
 
@@ -124,7 +128,7 @@ When independent temperature readings are unavailable, $`w`$ is a declared engin
 
 ## 4. End a heating pulse
 
-Each pulse ends at the earliest temperature, duration or data-age limit.
+The controller converts its current temperature estimate into a future switch-off time, allowing heating to end before the next measurement arrives.
 
 The requested pulse specifies fixed voltage, maximum duration and $`T_c`$. Set the stopping allowance $`M`$ from the completed observer on the fitting experiment:
 
@@ -142,7 +146,7 @@ t_{\rm temperature}=t+
 
 where $`P_{\max}`$ bounds delivered heater power, including switching excursions, and $`\tau_{\rm off}`$ is the measured timer/physical-turn-off delay. Set the local timer to the earliest of this deadline, the original requested pulse end, and the last valid reading plus the permitted data age minus $`\tau_{\rm off}`$. Turn off immediately if that time has passed.
 
-The hotter model state cannot increase through passive internal heat exchange alone. Added electrical power gives the rise allowance $`P_{\max}/C_{\min}`$. The stopping rule combines this modeled rise with the experimentally checked allowance $`M`$.
+The rule reserves the checked allowance $`M`$ before calculating how much additional temperature rise is available. It uses the hotter state because warm surroundings can return heat to the metal. The modeled maximum heating rate, $`P_{\max}/C_{\min}`$, converts that remaining rise into time. Subtracting the turn-off delay makes the command occur early enough for the switch to respond.
 
 **One clock cycle.** Take illustrative values $`T=500`$, $`S=100`$, $`A=20`$ °C; $`C=0.001`$ J/K, $`G=0.001`$ W/K, $`\beta=1`$, $`\gamma=0.2`$ s⁻¹; $`P=10.4`$ W and $`\Delta t=0.001`$ s. The prediction is $`T_{\rm pred}=510`$, $`S_{\rm pred}=100.384`$ °C. With the illustrative curve, $`y=1.050`$, $`w=20`$ K and $`e_R=0.001`$, the grid minimum is **502 °C**: its prediction and resistance contributions to $`J`$ are 0.16 and 0.04.
 
@@ -150,7 +154,7 @@ For $`T_c=550`$ °C, $`M=15`$ K, $`P_{\max}=12`$ W, $`C_{\min}=0.001`$ J/K and $
 
 ## 5. Fit once, then validate separately
 
-Parameter fitting and validation use different recorded sequences.
+Fitting makes the thermal model follow the measured heater; a separate validation sequence tests whether that model and its stopping allowance end useful pulses at the selected limit.
 
 The fitting experiment identifies $`G,\beta,\gamma`$. Choose a checked pulse width $`t_p`$ and onset interval $`t_r>t_p`$; keep the voltage fixed. Log gate transitions, voltage, current and ambient temperature throughout:
 
@@ -161,14 +165,14 @@ The fitting experiment identifies $`G,\beta,\gamma`$. Choose a checked pulse wid
 
 The isolated pulse identifies rapid heating. The train and restart pulses reveal heat retained between pulses.
 
-For each positive candidate $`G,\beta,\gamma`$, replay the complete record from ambient using the power-input recipe and prediction equations. **Do not apply resistance corrections during this replay.** Minimize
+For each positive candidate $`G,\beta,\gamma`$, replay the complete record from ambient using the power-input recipe and prediction equations. **Do not apply resistance corrections during this replay:** they would hide prediction errors that the fitted coefficients must explain. Minimize
 
 ```math
 J_{\rm fit}=\sum_{k\in\text{settled readings}}
 \left[\frac{q(T(t_k))-V_k/(I_kR_0)}{e_R}\right]^2.
 ```
 
-Fix heat capacity from the measured geometry and material data. Three fitted coefficients then describe heat transfer. Appendix B gives a small derivative-free search. Independent temperature observations, where available, distinguish fits with similar resistance predictions but different temperature histories.
+Fix heat capacity from geometry and material data; fit the three heat-transfer coefficients using Appendix B. Independent temperature observations distinguish fits with similar resistance predictions but different temperature histories.
 
 For foil, a pyrometer can provide these observations when its spot lies on the active metal, emissivity is calibrated, and its temporal response resolves the experiment. Begin with sufficiently slow pulses for that instrument. For ultrafine wire, the same-stock equilibrium calibration establishes the material curve; it does not supply in-pulse temperature observations.
 
@@ -185,13 +189,15 @@ Evaluate four outcomes:
 3. The observer remains on a coherent branch and permits useful displacement or force.
 4. Pulse termination and retained heating behave correctly under the intended mechanical load.
 
-Agreement in resistance tests electrical prediction, including across a nonmonotonic curve. Without resolved independent temperature data, use the observer as experimental estimate-based pulse control within the previously checked finite-pulse protocol; $`M`$ remains a declared engineering margin. A demonstrated temperature-error allowance requires the independent reference. Restrict operation to the checked pulse, load and repetition range.
+Agreement in resistance tests electrical prediction, including across a nonmonotonic curve. Without resolved independent temperature data, use the observer as experimental estimate-based pulse control within the previously checked finite-pulse protocol; $`M`$ remains a declared engineering margin. A demonstrated temperature-error allowance requires the independent reference. Restrict operation to the checked pulse, load and repetition range. The inferred $`T`$ is a resistance-related effective metal temperature; a small hotspot can be hotter than this estimate.
 
 ## Appendix A. Clock-cycle arithmetic
 
-The following calculation runs once per channel update.
+This update combines predicted heating, resistance correction and the switch-off deadline into the calculation that ends each pulse.
 
 The table contains candidate temperature `U` and interpolated `q`. A settled reading is invalid if it times out, saturates, or has current below the calibrated measurement range. `permitted_data_age` is the configured maximum delay between valid readings. Time `t` is the update endpoint; `state_time` is the previously represented time. Split intervals at switching events. The electrical routine supplies interval-average `P` and a valid settled reading flag.
+
+A ±20 K search on a 1 °C grid checks at most 41 entries plus the continuous prediction: a few hundred arithmetic operations for one thermal substep. Calculate the first and last grid indices from `predicted ± w`. Precompute `1/w²` and `1/eR²` once to evaluate the same score with multiplications. A 20–800 °C table contains 781 float32 resistance values, occupying 3,124 bytes.
 
 ```pseudocode
 UPDATE(t, T, S, P, V, I, settled, heating):
@@ -235,7 +241,7 @@ A fault preserves the last computed state and disables subsequent pulses. Before
 
 ## Appendix B. Reproducible coefficient search
 
-A direct multiplicative search gives a reproducible initial fit.
+Adjusting the three heat-transfer coefficients makes the model reproduce measured heating and cooling, reducing the correction required during operation.
 
 Use reference values $`G=C(A)/t_p`$, $`\beta=1/t_r`$, $`\gamma=1/(4t_r)`$. Try exactly three starts, multiplying all three reference values together by 0.1, 1 or 10. This is a small local search; independent temperature checks distinguish physically different fits.
 
@@ -264,13 +270,11 @@ FIT():
 
 Inspect systematic residuals and alternative temperature histories. Unfinished searches or incompatible independent temperatures require resolving that specific fit before operation. The validation record remains separate from fitting and allowance selection.
 
-## Appendix C. Physical interpretation and processor implementation
+## Appendix C. Processor implementation
 
-The processor executes the same arithmetic as the offline replay.
+Keeping measurement and switch-off timing on the local processor allows each pulse to finish from its temperature estimate while the PC handles setup and records.
 
-A Teensy 4.1 can perform the single-channel arithmetic locally. The macro circuit measures current and both terminal voltages; the wire channel measures shunt current and selected differential voltage. Apply each circuit's measured bypass-current correction before forming $`VI`$ or $`V/I`$. USB transfers configuration and buffered records outside the pulse-control calculation.
-
-The model has consistent physical units: power divided by heat capacity has units K/s; $`G(T-S)`$ has units W; the two heat-transfer rates have units s⁻¹; all three fitted coefficients are positive. The passive model cools toward ambient with power removed. The inferred $`T`$ is a resistance-related effective metal temperature, distinct from the spatial peak at a hotspot. The two-state description and finite correction window must explain the intended pulse history before their estimates are used to end pulses.
+This is a reasonable single-channel workload for the 600 MHz Teensy 4.1 with hardware floating point; verify complete measurement, update and timer duration on the assembled board. The macro circuit measures current and both terminal voltages; the wire channel measures shunt current and selected differential voltage. Apply each circuit's measured bypass-current correction before forming $`VI`$ or $`V/I`$. USB transfers configuration and buffered records outside the pulse-control calculation.
 
 ---
 
@@ -286,7 +290,7 @@ The model has consistent physical units: power divided by heat capacity has unit
 
 ## 1. Connect power and measurement paths
 
-**Purpose:** measure heat delivered to the foil separately from losses in the cables and switch.
+Separate voltage-sense leads exclude cable and switch losses, so measured electrical power corresponds to heat delivered to the foil.
 
 1. Connect supply positive → foil → INA253 current path → MOSFET → supply negative.
 2. Attach two heavier power wires and **two separate sense wires at the foil pads**. Connect each sense wire to a 1 kΩ/1 kΩ divider.
@@ -298,7 +302,7 @@ For approximately 1 Ω foil, 2, 3 and 4 V **across the foil** produce 4, 9 and 1
 
 ## 2. Calibrate the electrical readings
 
-**Purpose:** convert three ADC readings into foil voltage, current and resistance.
+Electrical calibration makes a resistance change attributable to the foil rather than sensor gain or offset.
 
 Use the final electronics and cables. Initially replace the foil with a stable 1 Ω resistor whose continuous rating exceeds the calibration power $`I^2R`$.
 
@@ -325,9 +329,12 @@ Here $`I_s`$ is calibrated sensor-branch current and $`D`$ is the negative divid
 
 ## 3. Establish the temperature scale
 
-**Purpose:** attach an independently measured temperature to the resistance curve.
+The pyrometer gives the temperature scale that electrical readings alone cannot supply. Heat capacity supplies the second physical scale: how much electrical energy raises the foil temperature by one degree.
 
-Measure the active foil length, width and thickness; calculate mass $`m=\rho lwd`$ using alloy density $`\rho`$. Store heat capacity $`C(T)=m c_p(T)`$, where $`c_p(T)`$ is alloy specific heat. Keep uncertainty in thickness, active dimensions and material data with this table.
+1. Measure active foil length, width and thickness; calculate mass $`m=\rho lwd`$ using alloy density $`\rho`$.
+2. Store heat capacity $`C(T)=m c_p(T)`$, where $`c_p(T)`$ is alloy specific heat. Keep uncertainty in dimensions and material data with this table.
+
+Measure the resistance–temperature curve:
 
 1. Record calibration ambient temperature $`A_{\rm cal}`$ and foil resistance $`R_{\rm cal}`$ after equilibration.
 2. Hold the switch on at a low DC voltage. Once both electrical readings and pyrometer temperature remain stable within instrument repeatability, record $`V,I,T`$.
@@ -341,9 +348,7 @@ Only spatially consistent equilibrium points establish the material curve. If ce
 
 ## 4. Fit, check and operate
 
-**Purpose:** connect the calibrated circuit to useful temperature-controlled pulses.
-
-The controller estimates foil temperature $`T`$ and surroundings temperature $`S`$. Its three fitted coefficients describe heat transfer between them and cooling toward ambient $`A`$. Use the explicit fitting and update calculations in Temperature control.
+Electrical power predicts how fast the foil heats; resistance checks that prediction; the surroundings state accounts for heat left by earlier pulses. The controller estimates foil temperature $`T`$ and surroundings temperature $`S`$, with three fitted coefficients for heat exchange and cooling toward ambient $`A`$. Use the explicit calculations in Temperature control.
 
 1. Load electrical calibration, $`R_0`$, resistance and heat-capacity tables, fitted coefficients and pulse limits. Start after the established cooldown, with $`T=S=A`$.
 2. Request a finite sequence of **fixed-amplitude pulses**, specifying temperature ceiling $`T_c`$, maximum duration and repetition interval.
@@ -354,6 +359,8 @@ The controller estimates foil temperature $`T`$ and surroundings temperature $`S
 After a processor reset, keep power disabled for the cooldown measured after the hottest permitted run. This establishes the initial thermal state for the next sequence.
 
 ## Appendix A. Components and pins
+
+These connections implement the separate power, current and terminal-voltage paths in the circuit figure.
 
 | Item | Selected configuration |
 |---|---|
@@ -386,7 +393,7 @@ The miniature MOSFET needs a soldered current/thermal pad and copper area. Assem
 
 ## 1. Build the repeated channel
 
-**Purpose:** control each heater independently while measuring its electrical input.
+A separate switch and current measurement let each pixel heat and stop independently, even while other pixels remain active.
 
 1. Connect supply positive → heater → **0.100 Ω shunt → AO3400A → supply negative**. Place the shunt and switch on the electronics board.
 2. Run two short, separate traces from the shunt pads to INA190A2 inputs. Its gain of 50 gives a nominal current sensitivity of **5 V/A**.
@@ -400,7 +407,7 @@ For each group of eight pixels, provide **25 functional conductors:** one common
 
 ## 2. Supply concurrent pulses
 
-**Purpose:** maintain the selected heater voltage when several pixels turn on together.
+Concurrent pulses draw their combined current from the supply; this check preserves the intended heating rate when several pixels turn on together.
 
 A 12.5 Ω heater at 2.8 W requires
 
@@ -418,7 +425,7 @@ Eight such heaters use approximately **3.8 A**; 32 use approximately **15 A and 
 
 ## 3. Calibrate current and voltage
 
-**Purpose:** calculate actual heater resistance rather than the resistance of the complete power path.
+Temperature estimation needs the wire’s resistance, so calibration removes sensing errors and the separate sense leads exclude cable and switch losses.
 
 1. For each channel, measure two positive reference currents with the ammeter in the **shunt/MOSFET branch**. Record ADC codes $`n_1,n_2`$ and reference currents $`x_1,x_2`$.
 2. Calculate $`a=(x_2-x_1)/(n_2-n_1)`$, $`b_0=x_1-an_1`$; convert subsequent codes using $`x=an+b_0`$. Check a third current and repeat after warming the board.
@@ -442,7 +449,7 @@ Pulse the resistor loads using the final cable and scan order. Record selection-
 
 ## 4. Apply the single-channel controller
 
-**Purpose:** repeat one calculation without coupling the pixels’ power commands.
+Every pixel retains its own temperature history, so an earlier pulse shortens its remaining heating allowance without changing other pixels’ commands.
 
 Use Temperature control separately for each channel. Store each pixel’s electrical calibration and resistance $`R_0`$ at ambient temperature $`A`$; load the same-batch curve from the wire-temperature fixture, rescaled so $`q(A)=1`$. Each channel retains its own heater temperature $`T`$ and surroundings temperature $`S`$.
 
@@ -458,7 +465,7 @@ The board timer serves the earliest active deadline. A measurement fault stops t
 
 ## 5. Check the assembled pixels
 
-**Purpose:** verify both the measurement and the resulting tactile output under the intended conditions.
+Pixel assembly, neighboring heaters and mechanical contact change heat loss; the operating checks establish where the fitted model produces repeatable tactile output.
 
 1. Check array continuity and connector orientation before installing the wire. Keep the common heater feed isolated from any conflicting ground connection.
 2. Record each assembled pixel’s ambient resistance. Compare it with its wire length and with other pixels of the same geometry; inspect unusually large differences.
@@ -467,6 +474,8 @@ The board timer serves the earliest active deadline. A measurement fault stops t
 5. Measure displacement or force as well as resistance. Record the pulse amplitude, repetition rate and load condition associated with repeatable useful output. Resistance residuals test electrical/model consistency; a temperature-error claim additionally requires an independent temperature reference that resolves the transient.
 
 ## Appendix A. Parts
+
+Each pixel gets its own current and switch components; eight pixels share the voltage-measurement components.
 
 | Per pixel | Selection |
 |---|---|
@@ -491,6 +500,8 @@ The board timer serves the earliest active deadline. A measurement fault stops t
 Provide a physical supply disconnect, supply protection and connectors rated for concurrent current. Place shunts/amplifiers away from switch heating; route power current separately from measurement ground.
 
 ## Appendix B. Connections
+
+The following connections select one pixel’s voltage while leaving all eight power switches independently controlled.
 
 **INA190A2 DCK:** pin 1 REF, 2 GND, 3 VS, 4 IN+, 5 IN−, 6 OUT.
 
@@ -521,7 +532,7 @@ Both TMUX1108 selectors use 3.3 V, common address/enable lines, and grounded VSS
 
 ## 1. Assemble the reference specimen
 
-**Purpose:** place the complete resistance-bearing length in a nearly uniform temperature field.
+Heating the entire winding to nearly one temperature lets the adjacent probe assign a temperature to its total measured resistance.
 
 1. Wind **1–2 m of same-stock wire** in one noncrossing layer around a **20 mm outside-diameter alumina tube**. At 0.5 mm pitch, 16–32 turns occupy 8–16 mm. Leave expansion slack and support the ends separately.
 2. Put the winding in a loosely covered alumina boat near the kiln center; place the reference probe beside it.
@@ -532,7 +543,7 @@ Select the kiln and supported feedthrough arrangement together. A vent opening a
 
 ## 2. Check the electrical measurement
 
-**Purpose:** quantify lead and contact errors before interpreting the wire’s resistance.
+The long fine wire makes specimen resistance much larger than lead resistance; measuring the remaining lead contribution preserves small temperature-dependent changes.
 
 Representative NiCr80 resistivity gives approximately **1440 Ω/m** for 31 µm wire. A total of 0.6 m of 0.5 mm NiCr leads adds approximately **3.3 Ω**. A 7% change in that lead resistance is 0.23 Ω, or **0.016%** of a one-metre specimen. Use measured lead resistance and the actual lead alloy’s thermal variation in the calculation.
 
@@ -546,7 +557,7 @@ A two-wire measurement is sufficient when these errors fit the required resoluti
 
 ## 3. Collect the temperature references
 
-**Purpose:** establish temperature scale, curve shape and repeatability with a small measurement set.
+A few equilibrium readings establish the temperature scale; additional points near turning regions preserve the nonmonotonic shape used by the observer.
 
 1. At equilibrium, record calibration ambient $`A_{\rm cal}`$, total resistance and lead/contact correction.
 2. At one steady elevated temperature, compare probe readings beside the winding’s center and ends. Include the spatial spread with probe uncertainty.
@@ -559,7 +570,7 @@ Equilibrium and a sufficiently uniform enclosure connect the adjacent probe read
 
 ## 4. Prepare the controller table
 
-**Purpose:** produce a reusable same-stock curve with traceable uncertainty.
+Dividing by ambient resistance removes specimen length from the curve, allowing a long calibration winding to describe a short pixel made from the same stock.
 
 For each reference calculate
 
@@ -577,6 +588,8 @@ This experiment establishes the equilibrium material curve. Pulse-response measu
 
 ## Appendix A. Equipment
 
+The enclosure, probe and insulated connections must cover the same upper temperature so the reference remains meaningful throughout the measurement.
+
 | Item | Configuration |
 |---|---|
 | Kiln | Programmable through the upper reference; supported lead/probe access |
@@ -584,6 +597,101 @@ This experiment establishes the equilibrium material curve. Pulse-response measu
 | Leads and contacts | Thick NiCr, ceramic insulation, isolated high-temperature compression contacts |
 | Temperature instrument | Probe/thermometer with documented uncertainty over the reference range |
 | Resistance instrument | Bench meter with documented accuracy and measuring current |
+
+---
+
+# Temperature-limited pulse examples
+
+- **A finite pulse train demonstrates why retained heat matters.** The same voltage produces shorter pulses as the surroundings warm. The controller carries both temperatures through the pauses.
+- **Two examples use the same requests and controller settings:** a reference thermal model and a modest mismatch in heat capacity and heat transfer. Their simulated peaks are 433.9 and 433.2 °C under a 450 °C ceiling.
+- **The measurements include noise and bias.** Voltage and current each have 0.05% rms noise; their ratio has approximately 0.07% rms noise plus 0.05% bias. These are assumed calibrated measurement properties, not measured Teensy performance.
+- **A separate ambiguity example ends a pulse early.** With a deliberately wider temperature search, the measured resistance supports two branches and heating stops.
+- **These are reproducible numerical examples.** They demonstrate the controller's calculations and consequences under specified assumptions; they do not establish physical temperature accuracy or tactile output.
+
+## 1. Physical example and controller settings
+
+The simulation separates the heater’s temperature from the controller’s estimate, making their agreement and the resulting pulse termination directly visible. The heater and surroundings obey the two-temperature equations used in Temperature-limited heating pulses; their states are integrated separately from the controller calculation.
+
+| Quantity | Assumed value |
+|---|---|
+| Active strip | 10 mm × 1 mm × 15 µm; **assumed geometry**, not a measured prototype |
+| Metal mass and ambient resistance | 1.245 mg; 0.720 Ω |
+| Heat capacity | Temperature dependent: 0.573 mJ/K at 20 °C; 0.784 mJ/K at 800 °C |
+| Applied heater voltage | Fixed 2.70 V; approximately 3.75 A and 10.13 W initially |
+| Nominal thermal coefficients | $`G=0.010`$ W/K, $`\beta=4`$ s⁻¹, $`\gamma=1`$ s⁻¹ |
+| Temperature settings | Ceiling $`T_c=450`$ °C; assumed margin $`M=15`$ K; search half-width $`w=30`$ K |
+| Resistance comparison | $`e_R=0.003`$, or 0.3% of ambient resistance; 1 °C table |
+| Measurement timing | 0.20 ms updates; 0.10 ms startup settling; 1 ms maximum data age |
+| Switch-off delay | Current continues for 0.050 ms after an OFF command |
+| Power used by timer | $`P_{\max}=2.72^2/0.720=10.276`$ W; nominal $`C_{\min}=0.573`$ mJ/K |
+
+The normalized resistance curve comes from **Alloy Wire International’s AWS180 NiCr80 datasheet, Rev.1**, including its maximum near 600 °C and decline toward 800 °C. Density and heat capacity come from Kanthal’s Nikrothal 80 data. These representative properties replace the laboratory stock’s measured values for this example. Full tables and source references are included in the downloadable package.
+
+Both plant and controller use this same resistance curve. Thermal coefficients are selected, not fitted. The plant uses fourth-order Runge–Kutta integration with steps no longer than 10 µs; the controller uses the specified short Euler steps, table score, continuous-prediction candidate and local deadline. No resistance observation is supplied during OFF time.
+
+The sensor model adds +0.03% voltage bias and −0.02% current bias, with independent Gaussian noise and a fixed random seed. It represents calibrated V/I readings rather than an ADC bit-level model. Complete settled ON intervals use endpoint $`VI`$ trapezoids. Unobserved partial ON and switch-off intervals use $`P_{\max}`$; OFF intervals use 2 µW. Switching boundaries are kept separate, so a trapezoid never crosses an edge.
+
+## 2. Two five-pulse sequences
+
+Repeated pulses test whether retained heat causes the controller to shorten later pulses. Both examples receive the same requests:
+
+1. Start pulses at **0.050, 0.200, 0.350 and 0.500 s**; request durations **25, 50, 25 and 50 ms**.
+2. Let each pulse terminate by its temperature, duration or data-age rule.
+3. Wait **300 ms after current ceases in pulse 4**, then request one final **50 ms** pulse.
+
+![Pulse trains with reference and mismatched thermal parameters](../assets/figures/pulse-trains.png)
+
+The grey bands show requested durations. The delivered-power traces show the shorter actual pulses. In both examples, pulse 1 ends at its duration limit; pulses 2–5 end at the temperature deadline. “Current ON” includes the 50 µs delay after the OFF command.
+
+**A. Reference thermal model.** Plant and controller share the thermal coefficients and heat capacity. Measurement errors, different numerical integration and simulated switch delay remain present. This is an implementation consistency example.
+
+| Pulse | Start (s) | Requested (ms) | Current ON (ms) | Start metal (°C) | Peak metal (°C) | Energy (mJ) |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 0.050 | 25 | 25.05 | 20.0 | 361.4 | 249.2 |
+| 2 | 0.200 | 50 | 24.17 | 117.2 | 428.8 | 238.1 |
+| 3 | 0.350 | 25 | 18.22 | 183.6 | 424.8 | 178.9 |
+| 4 | 0.500 | 50 | 16.17 | 218.0 | 433.9 | 158.3 |
+| 5 | 0.816 | 50 | 16.14 | 206.6 | 427.0 | 158.3 |
+
+The metal begins pulse 4 near **218 °C**, while the surroundings are near **192 °C**. Even the 300 ms pause leaves substantial heat: pulse 5 begins near **207 °C**. Reinitializing either state to ambient would erase that history. Across settled readings, temperature-estimation RMSE is **5.30 K**, and the largest underestimate is **7.85 K** for this realization.
+
+**B. Modest thermal mismatch.** The actual strip has **8% less heat capacity**, $`G`$ is 10% smaller, $`\beta`$ is 10% larger and $`\gamma`$ is 10% smaller. The controller retains the reference parameters and the same settings.
+
+| Pulse | Start (s) | Requested (ms) | Current ON (ms) | Start metal (°C) | Peak metal (°C) | Energy (mJ) |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 0.050 | 25 | 25.05 | 20.0 | 390.2 | 248.7 |
+| 2 | 0.200 | 50 | 20.02 | 133.9 | 423.9 | 197.2 |
+| 3 | 0.350 | 25 | 16.25 | 194.8 | 433.1 | 159.4 |
+| 4 | 0.500 | 50 | 13.02 | 235.2 | 429.5 | 127.4 |
+| 5 | 0.813 | 50 | 13.80 | 225.3 | 433.2 | 135.1 |
+
+The actual strip heats faster, and resistance correction changes the estimated trajectory. Pulse 2 therefore lasts **20.02 ms**, compared with **24.17 ms** in the reference case. The settled-reading RMSE is **4.94 K** and the largest underestimate is **9.40 K**. The smaller RMSE is specific to this noise and bias realization; it is not evidence that model error improves estimation.
+
+The deliberately reduced actual heat capacity is also a calibration error in the timer's $`C_{\min}`$. Its nominal $`P_{\max}/C_{\min}`$ is consequently **not a valid heating-rate bound for this mismatched plant**. Remaining below the ceiling in this trace demonstrates this example's tolerance, not a general temperature guarantee.
+
+## 3. One pulse in detail
+
+The close-up shows how electrical readings and a scheduled switch-off end heating during a pulse. Pulse 2 of the mismatch case begins near **134 °C**. The command requests 50 ms at 2.70 V. As resistance increases, delivered power decreases slightly; resistance readings correct the thermal prediction throughout conduction.
+
+![Mismatch pulse 2 temperature, power and resistance](../assets/figures/pulse-detail.png)
+
+The timer issues OFF at **19.973 ms**; current ceases at **20.023 ms**. The pulse delivers **197.2 mJ**, and the simulated metal peaks at **423.9 °C**. Termination precedes the nominal $`T_c-M=435`$ °C estimated threshold because the deadline reserves further heating before switch-off. Measurement bias and noise also affect the correction. Afterward, both states continue cooling; resistance measurements stop.
+
+## 4. Supplementary branch-ambiguity check
+
+The wider search exposes the case where one resistance reading supports two separated temperatures, testing the decision to stop heating. The reference thermal model receives **one 100 ms request**, a **750 °C ceiling** and a deliberately wider **±150 K search**.
+
+![Early stop and two resistance-compatible temperature branches](../assets/figures/branch-ambiguity.png)
+
+At **37.800 ms**, the prediction is **484.6 °C** and measured normalized resistance is **1.06173**. The table test passes two separated groups: **468–499 °C** and **628–634 °C**. The controller stops; current ceases at **37.850 ms**. Delivered energy is **372.7 mJ**, and the simulated temperature peaks at **477.2 °C**. The ceiling does not cause this termination—the unresolved branch does.
+
+The broad-search case also has a larger maximum underestimate, **22.9 K**, exceeding the assumed 15 K margin before its ambiguity stop. It illustrates why an operating search width and temperature allowance need independent evidence; one successful lower-temperature sequence cannot establish either over the whole material curve.
+
+## 5. Reproduce and inspect
+
+The code and data reproduce each pulse and allow the numerical result to be checked independently. The download contains the fixed-seed script, exact material tables, per-pulse records, complete traces and run instructions. Running `python3 simulate.py` regenerates all three examples.
+
+The simulation supplies its own temperature reference by construction. It omits spatial hotspots, contact changes, material-curve error and detailed sensor/ADC dynamics. Its useful conclusions are the pulse sequence, retained-heat effect, resistance-correction behavior and explicit ambiguity stop under these stated assumptions. Physical validation remains the separate experiment described in the controller note.
 
 ---
 
@@ -599,13 +707,15 @@ This experiment establishes the equilibrium material curve. Pulse-response measu
 
 ## 1. Build one channel
 
+Voltage and current measurements let the controller estimate foil temperature and end the heating pulse.
+
 Use a Teensy 4.1, INA253EVM A3 current sensor, CSD17305Q5A switch and adjustable 0–5 V supply with current below 5 A. Connect supply positive → approximately 1 Ω foil → current sensor → switch → supply negative. Use a copper carrier for the switch.
 
 Attach separate voltage-sense wires at the foil pads. Each feeds a 1 kΩ/1 kΩ divider with 1 nF at its midpoint. The current output uses 100 Ω/1 nF. Connect the gate through 1 kΩ and add a 100 kΩ gate-to-source pull-down. Use 3.3 V sensor and controller signals. The pyrometer views the active foil; its spot must fit the target.
 
 ## 2. Measure the inputs
 
-Complete these measurements before temperature-controlled pulses.
+Calibration lets the controller distinguish a temperature rise from electrical measurement error.
 
 1. **Electrical conversion:** use two known values per voltage/current channel, then check an intermediate value. For ADC code $`n`$, store $`x=an+b`$, with $`a=(x_2-x_1)/(n_2-n_1)`$, $`b=x_1-an_1`$. Calibrate sensor-branch current. Reconstruct heater quantities as $`V=V_+-V_-`$, $`I=I_s+V_-/2000`$ after settling.
 2. **Timing and power:** pulse a stable resistor. Record settling time, maximum heater power $`P_{\max}`$, turn-off delay and residual OFF power. Check the complete voltage/current sample cycle.
@@ -613,7 +723,7 @@ Complete these measurements before temperature-controlled pulses.
 4. **Heat capacity:** calculate active foil mass times alloy specific heat, $`C(T)=mc_p(T)`$. Store its minimum $`C_{\min}`$.
 5. **Useful pulse:** choose one fixed voltage and finite duration that give the desired tactile response within the independently observed temperature range. The pyrometer must resolve that pulse; check its response time and recorded trace before using it as a dynamic reference.
 
-Between adjacent calibration points use
+To estimate resistance between measured temperatures, join neighboring calibration points with a straight line:
 
 ```math
 q(U)=q_j+(q_{j+1}-q_j)(U-T_j)/(T_{j+1}-T_j).
@@ -623,6 +733,8 @@ Precompute $`q(U)`$ at 1 °C spacing and the largest absolute segment slope $`L`
 
 ## 3. Fit and set the stopping allowance
 
+Fit heat loss and retention, then measure the temperature allowance needed for switch-off.
+
 Use fixed voltage, pulse width $`t_p`$ and start-to-start interval $`t_r>t_p`$. Record this fitting sequence:
 
 1. From ambient, apply one pulse; wait $`4t_r`$ after turn-off.
@@ -630,18 +742,20 @@ Use fixed voltage, pulse width $`t_p`$ and start-to-start interval $`t_r>t_p`$. 
 3. Wait $`t_r`$ after the final turn-off; apply one pulse.
 4. Wait $`4t_r`$ after turn-off; apply one pulse.
 
-Fit positive $`G,\beta,\gamma`$ by replaying
+Here $`G`$ controls heat leaving the foil, $`\beta`$ controls warming of the surroundings, and $`\gamma`$ controls their cooling toward ambient. Fit positive values by replaying
 
 ```math
 T_{\rm new}=T+\Delta t[P-G(T-S)]/C(T),\qquad
 S_{\rm new}=S+\Delta t[\beta(T-S)-\gamma(S-A)]
 ```
 
-and minimizing $`\sum[q(T)-V/(IR_0)]^2`$. Use measured power during settled conduction, $`P_{\max}`$ during settling and measured OFF power. Keep the state through every pause; apply no resistance correction during fitting. A direct multiplicative search over the three coefficients is sufficient for the initial fit.
+and minimizing $`\sum[q(T)-V/(IR_0)]^2`$. Use measured power during settled conduction, $`P_{\max}`$ during settling and measured OFF power. Keep both temperatures through every pause. During fitting, omit resistance correction so it cannot conceal errors in the thermal prediction. A direct multiplicative search over the three coefficients is sufficient for the initial fit.
 
 Set search width $`w\ge1`$ K from the largest uncorrected-model temperature error on this record, adding reference uncertainty and one grid step. Replay the resistance-corrected observer below. Set stopping allowance $`M`$ from its largest temperature underestimation, plus reference uncertainty and one grid step. Freeze these values before the separate check.
 
 ## 4. Run the local controller
+
+Each update predicts heating, corrects it using resistance and sets the switch-off deadline.
 
 Initialize $`T=S=A`$ after cooling. Before a pulse, update the stored cooling state, fix its original end time and initialize the first-reading expiry. In one uninterrupted operation, check the deadline, arm the timer and enable the switch if the deadline is future. Use a clock step $`\Delta t\le0.1\min(C_{\min}/G,1/(\beta+\gamma))`$; divide longer gaps into such steps. Each update receives aligned voltage/current and its timestamp. Here $`T_c`$ is the temperature ceiling; `data_age` is the maximum permitted interval between valid readings. An invalid reading has timed out, saturated, or fallen below the calibrated current range.
 
@@ -681,9 +795,11 @@ At each clock update:
     else: arm local timer for deadline
 ```
 
-The table search follows the initialized thermal history. Multiple separated compatible runs stop the pulse. The continuous prediction is also a candidate, preserving small temperature rises where the curve is flat. Faults disable further pulses until resolved; reset requires the established cooldown.
+The score favors temperatures close to both the prediction and the measured resistance. Multiple separated compatible runs stop the pulse. Including the continuous prediction preserves small temperature rises where resistance provides little temperature information. Faults disable further pulses until resolved; reset requires the established cooldown.
 
 ## 5. Check the result independently
+
+A different pulse sequence checks temperature-limited heating and useful tactile output with the completed controller.
 
 Keep coefficients and allowances fixed:
 
@@ -696,4 +812,4 @@ This check establishes the tested pulse and load range. The estimate represents 
 
 ## Appendix: subsequent improvements
 
-After this single-channel result, extend pulse rate within available temperature-reference bandwidth, improve electrical precision if resistance error dominates, or repeat the same calculation for additional channels. Preserve the demonstrated operating settings while evaluating each change.
+Use the first result to choose the next improvement: faster pulses that the temperature reference can resolve, better electrical precision if resistance error dominates, or additional channels. Check each change against the same temperature and tactile-output goals.

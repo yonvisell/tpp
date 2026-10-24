@@ -10,13 +10,15 @@
 
 ## 1. Build one channel
 
+Voltage and current measurements let the controller estimate foil temperature and end the heating pulse.
+
 Use a Teensy 4.1, INA253EVM A3 current sensor, CSD17305Q5A switch and adjustable 0–5 V supply with current below 5 A. Connect supply positive → approximately 1 Ω foil → current sensor → switch → supply negative. Use a copper carrier for the switch.
 
 Attach separate voltage-sense wires at the foil pads. Each feeds a 1 kΩ/1 kΩ divider with 1 nF at its midpoint. The current output uses 100 Ω/1 nF. Connect the gate through 1 kΩ and add a 100 kΩ gate-to-source pull-down. Use 3.3 V sensor and controller signals. The pyrometer views the active foil; its spot must fit the target.
 
 ## 2. Measure the inputs
 
-Complete these measurements before temperature-controlled pulses.
+Calibration lets the controller distinguish a temperature rise from electrical measurement error.
 
 1. **Electrical conversion:** use two known values per voltage/current channel, then check an intermediate value. For ADC code $`n`$, store $`x=an+b`$, with $`a=(x_2-x_1)/(n_2-n_1)`$, $`b=x_1-an_1`$. Calibrate sensor-branch current. Reconstruct heater quantities as $`V=V_+-V_-`$, $`I=I_s+V_-/2000`$ after settling.
 2. **Timing and power:** pulse a stable resistor. Record settling time, maximum heater power $`P_{\max}`$, turn-off delay and residual OFF power. Check the complete voltage/current sample cycle.
@@ -24,7 +26,7 @@ Complete these measurements before temperature-controlled pulses.
 4. **Heat capacity:** calculate active foil mass times alloy specific heat, $`C(T)=mc_p(T)`$. Store its minimum $`C_{\min}`$.
 5. **Useful pulse:** choose one fixed voltage and finite duration that give the desired tactile response within the independently observed temperature range. The pyrometer must resolve that pulse; check its response time and recorded trace before using it as a dynamic reference.
 
-Between adjacent calibration points use
+To estimate resistance between measured temperatures, join neighboring calibration points with a straight line:
 
 ```math
 q(U)=q_j+(q_{j+1}-q_j)(U-T_j)/(T_{j+1}-T_j).
@@ -34,6 +36,8 @@ Precompute $`q(U)`$ at 1 °C spacing and the largest absolute segment slope $`L`
 
 ## 3. Fit and set the stopping allowance
 
+Fit heat loss and retention, then measure the temperature allowance needed for switch-off.
+
 Use fixed voltage, pulse width $`t_p`$ and start-to-start interval $`t_r>t_p`$. Record this fitting sequence:
 
 1. From ambient, apply one pulse; wait $`4t_r`$ after turn-off.
@@ -41,18 +45,20 @@ Use fixed voltage, pulse width $`t_p`$ and start-to-start interval $`t_r>t_p`$. 
 3. Wait $`t_r`$ after the final turn-off; apply one pulse.
 4. Wait $`4t_r`$ after turn-off; apply one pulse.
 
-Fit positive $`G,\beta,\gamma`$ by replaying
+Here $`G`$ controls heat leaving the foil, $`\beta`$ controls warming of the surroundings, and $`\gamma`$ controls their cooling toward ambient. Fit positive values by replaying
 
 ```math
 T_{\rm new}=T+\Delta t[P-G(T-S)]/C(T),\qquad
 S_{\rm new}=S+\Delta t[\beta(T-S)-\gamma(S-A)]
 ```
 
-and minimizing $`\sum[q(T)-V/(IR_0)]^2`$. Use measured power during settled conduction, $`P_{\max}`$ during settling and measured OFF power. Keep the state through every pause; apply no resistance correction during fitting. A direct multiplicative search over the three coefficients is sufficient for the initial fit.
+and minimizing $`\sum[q(T)-V/(IR_0)]^2`$. Use measured power during settled conduction, $`P_{\max}`$ during settling and measured OFF power. Keep both temperatures through every pause. During fitting, omit resistance correction so it cannot conceal errors in the thermal prediction. A direct multiplicative search over the three coefficients is sufficient for the initial fit.
 
 Set search width $`w\ge1`$ K from the largest uncorrected-model temperature error on this record, adding reference uncertainty and one grid step. Replay the resistance-corrected observer below. Set stopping allowance $`M`$ from its largest temperature underestimation, plus reference uncertainty and one grid step. Freeze these values before the separate check.
 
 ## 4. Run the local controller
+
+Each update predicts heating, corrects it using resistance and sets the switch-off deadline.
 
 Initialize $`T=S=A`$ after cooling. Before a pulse, update the stored cooling state, fix its original end time and initialize the first-reading expiry. In one uninterrupted operation, check the deadline, arm the timer and enable the switch if the deadline is future. Use a clock step $`\Delta t\le0.1\min(C_{\min}/G,1/(\beta+\gamma))`$; divide longer gaps into such steps. Each update receives aligned voltage/current and its timestamp. Here $`T_c`$ is the temperature ceiling; `data_age` is the maximum permitted interval between valid readings. An invalid reading has timed out, saturated, or fallen below the calibrated current range.
 
@@ -92,9 +98,11 @@ At each clock update:
     else: arm local timer for deadline
 ```
 
-The table search follows the initialized thermal history. Multiple separated compatible runs stop the pulse. The continuous prediction is also a candidate, preserving small temperature rises where the curve is flat. Faults disable further pulses until resolved; reset requires the established cooldown.
+The score favors temperatures close to both the prediction and the measured resistance. Multiple separated compatible runs stop the pulse. Including the continuous prediction preserves small temperature rises where resistance provides little temperature information. Faults disable further pulses until resolved; reset requires the established cooldown.
 
 ## 5. Check the result independently
+
+A different pulse sequence checks temperature-limited heating and useful tactile output with the completed controller.
 
 Keep coefficients and allowances fixed:
 
@@ -107,4 +115,4 @@ This check establishes the tested pulse and load range. The estimate represents 
 
 ## Appendix: subsequent improvements
 
-After this single-channel result, extend pulse rate within available temperature-reference bandwidth, improve electrical precision if resistance error dominates, or repeat the same calculation for additional channels. Preserve the demonstrated operating settings while evaluating each change.
+Use the first result to choose the next improvement: faster pulses that the temperature reference can resolve, better electrical precision if resistance error dominates, or additional channels. Check each change against the same temperature and tactile-output goals.
